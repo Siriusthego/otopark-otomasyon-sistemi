@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="tr">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Otopark Yönetim Sistemi — Tasarım</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="brand-text">
+        <div class="title">Otopark Yönetim Sistemi</div>
+        <div class="subtitle">Veritabanı Yönetimi Projesi</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <div class="search">
+        <input type="search" placeholder="Plaka / müşteri / park yeri ara..." />
+        <button class="btn btn-soft">Ara</button>
+      </div>
+      <button class="btn btn-primary">+ Yeni İşlem</button>
+      <div class="user">
+        <div class="avatar">MK</div>
+        <div class="user-meta">
+          <div class="user-name">Merve Kul</div>
+          <div class="user-role">Yönetici</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <a class="nav-item active" href="#dashboard">Dashboard</a>
+        <a class="nav-item" href="#entry">Araç Girişi</a>
+        <a class="nav-item" href="#exit">Araç Çıkışı / Ücret</a>
+        <a class="nav-item" href="#spaces">Park Yerleri</a>
+        <a class="nav-item" href="#customers">Müşteri & Araçlar</a>
+        <a class="nav-item" href="#tariffs">Tarifeler</a>
+        <a class="nav-item" href="#subs">Abonelikler</a>
+        <a class="nav-item" href="#reports">Raporlar</a>
+        <div class="nav-sep"></div>
+        <a class="nav-item" href="#settings">Ayarlar</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="mini-card">
+          <div class="mini-title">Anlık Durum</div>
+          <div class="mini-row">
+            <span class="badge ok">Boş</span>
+            <span>142</span>
+          </div>
+          <div class="mini-row">
+            <span class="badge warn">Dolu</span>
+            <span>78</span>
+          </div>
+          <div class="mini-row">
+            <span class="badge muted">Bakım</span>
+            <span>6</span>
+          </div>
+        </div>
+
+        <div class="hint">
+          <div class="hint-title">Not</div>
+          <div class="hint-text">
+            Bu arayüz yalnızca tasarımdır. Veri/DB bağlantısı yoktur.
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="content">
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Dashboard</h1>
+            <p class="muted">Anlık doluluk, gelir ve işlem özeti.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft range-btn active" data-range="today">Bugün</button>
+            <button class="btn btn-soft range-btn" data-range="week">Bu Hafta</button>
+            <button class="btn btn-soft range-btn" data-range="month">Bu Ay</button>
+          </div>
+        </div>
+
+        <div class="grid cards-4">
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">Doluluk</span>
+              <span class="dot ok"></span>
+            </div>
+            <div class="kpi" id="kpi-occupancy">36%</div>
+            <div class="muted small" id="kpi-occupancy-sub">Toplam 226 alan • 78 dolu</div>
+            <div class="progress">
+              <div class="bar" id="kpi-occupancy-bar" style="width:36%"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">Günlük Gelir</span>
+              <span class="dot warn"></span>
+            </div>
+            <div class="kpi" id="kpi-revenue">₺ 18.450</div>
+            <div class="muted small" id="kpi-revenue-sub">Toplam ödeme (bugün)</div>
+            <div class="spark">
+              <span style="height:30%"></span><span style="height:55%"></span><span style="height:38%"></span>
+              <span style="height:70%"></span><span style="height:45%"></span><span style="height:80%"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">İşlem Sayısı</span>
+              <span class="dot"></span>
+            </div>
+            <div class="kpi" id="kpi-tx">124</div>
+            <div class="muted small" id="kpi-tx-sub">Giriş + Çıkış (bugün)</div>
+
+            <div class="list-mini">
+              <div><span class="badge ok">Giriş</span><span id="kpi-in">62</span></div>
+              <div><span class="badge warn">Çıkış</span><span id="kpi-out">62</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">Abonelik</span>
+              <span class="dot muted"></span>
+            </div>
+            <div class="kpi" id="kpi-subs">48</div>
+            <div class="muted small" id="kpi-subs-sub">Aktif abonelik</div>
+            <div class="pill-row">
+              <span class="pill">Aylık</span>
+              <span class="pill">Kurumsal</span>
+              <span class="pill">VIP</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h2>İçerideki Araçlar</h2>
+              <button class="btn btn-soft">Tümü</button>
+            </div>
+
+            <div class="table">
+              <div class="t-row t-head">
+                <div>Plaka</div>
+                <div>Park</div>
+                <div>Kat</div>
+                <div>Yer</div>
+                <div>Giriş</div>
+                <div>Durum</div>
+              </div>
+
+              <div class="t-row">
+                <div class="mono">34 ABC 123</div>
+                <div>OTOP01</div>
+                <div>Zemin</div>
+                <div>Z-01</div>
+                <div>10:12</div>
+                <div><span class="badge warn">Dolu</span></div>
+              </div>
+
+              <div class="t-row">
+                <div class="mono">16 KUL 404</div>
+                <div>OTOP01</div>
+                <div>1.Kat</div>
+                <div>1-08</div>
+                <div>11:03</div>
+                <div><span class="badge warn">Dolu</span></div>
+              </div>
+
+              <div class="t-row">
+                <div class="mono">34 MRV 007</div>
+                <div>OTOP01</div>
+                <div>Zemin</div>
+                <div>Z-09</div>
+                <div>12:20</div>
+                <div><span class="badge warn">Dolu</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Hızlı İşlem</h2>
+              <button class="btn btn-primary">Kaydet</button>
+            </div>
+
+            <div class="form">
+              <div class="field">
+                <label>İşlem Tipi</label>
+                <div class="seg">
+                  <button class="seg-btn active" type="button">Giriş</button>
+                  <button class="seg-btn" type="button">Çıkış</button>
+                  <button class="seg-btn" type="button">Bakım</button>
+                </div>
+              </div>
+
+              <div class="grid two gap">
+                <div class="field">
+                  <label>Plaka</label>
+                  <input placeholder="34ABC123" />
+                </div>
+                <div class="field">
+                  <label>Tarife</label>
+                  <select>
+                    <option>Standart Saatlik</option>
+                    <option>Gece Tarifesi</option>
+                    <option>Abonelik (Aylık)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid two gap">
+                <div class="field">
+                  <label>Park</label>
+                  <select>
+                    <option>OTOP01 • Kadıköy Otopark</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Park Yeri</label>
+                  <select>
+                    <option>Z-01 (Dolu)</option>
+                    <option>Z-02 (Boş)</option>
+                    <option>1-01 (Bakım)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="note">
+                <span class="badge muted">Kural</span>
+                Aynı araç aynı anda yalnızca 1 park yerinde olabilir.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENTRY -->
+      <section id="entry" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Araç Girişi</h1>
+            <p class="muted">Plaka, tarife ve park yeri seçerek giriş kaydı oluşturur.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">QR / Kamera</button>
+            <button class="btn btn-primary">Giriş Oluştur</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form">
+            <div class="grid three gap">
+              <div class="field">
+                <label>Plaka</label>
+                <input id="entry-plate" placeholder="34ABC123" />
+              </div>
+              <div class="field">
+                <label>Tarife</label>
+                <select id="entry-tariff">
+                  <option value="">-- Yükleniyor... --</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Giriş Saati</label>
+                <input type="text" value="Otomatik (şimdi)" disabled />
+              </div>
+            </div>
+
+            <div class="grid two gap">
+              <div class="field">
+                <label>Park</label>
+                <select disabled>
+                  <option>OTOP01 • Kadıköy Otopark</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Park Yeri (Boş Olanlar)</label>
+                <select id="entry-space">
+                  <option value="">-- Yükleniyor... --</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="callout ok">
+              <div class="callout-title">Öneri</div>
+              <div class="callout-text">
+                En yakın “Boş” park yeri otomatik önerilebilir (tasarım notu).
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXIT -->
+      <section id="exit" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Araç Çıkışı / Ücret</h1>
+            <p class="muted">Kayıt seçilir, süre ve ücret hesaplanır, ödeme alınır.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">Fiş Yazdır</button>
+            <button class="btn btn-primary">Ödemeyi Tamamla</button>
+          </div>
+        </div>
+
+        <div class="grid two gap">
+          <div class="card">
+            <div class="card-head">
+              <h2>Çıkış Kaydı Seç</h2>
+              <span class="badge warn">İçeride</span>
+            </div>
+
+            <div class="table">
+              <div class="t-row t-head">
+                <div>Record</div>
+                <div>Plaka</div>
+                <div>Giriş</div>
+                <div>Yer</div>
+                <div>Tarife</div>
+                <div></div>
+              </div>
+
+              <div class="t-row">
+                <div class="mono">#1021</div>
+                <div class="mono">34 ABC 123</div>
+                <div>10:12</div>
+                <div>Z-01</div>
+                <div>Standart</div>
+                <div><button class="btn btn-soft btn-xs">Seç</button></div>
+              </div>
+
+              <div class="t-row">
+                <div class="mono">#1022</div>
+                <div class="mono">16 KUL 404</div>
+                <div>11:03</div>
+                <div>1-08</div>
+                <div>Gece</div>
+                <div><button class="btn btn-soft btn-xs">Seç</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Ücret Özeti</h2>
+              <span class="badge muted">Hesaplandı</span>
+            </div>
+
+            <div class="kpi-block">
+              <div class="kpi-line">
+                <span class="muted">Süre</span>
+                <span class="strong">2 saat 18 dk</span>
+              </div>
+              <div class="kpi-line">
+                <span class="muted">Tarife</span>
+                <span class="strong">Standart Saatlik</span>
+              </div>
+              <div class="kpi-line">
+                <span class="muted">Tutar</span>
+                <span class="strong big">₺ 150,00</span>
+              </div>
+            </div>
+
+            <div class="form">
+              <div class="field">
+                <label>Ödeme Yöntemi</label>
+                <div class="seg">
+                  <button class="seg-btn active" type="button">Nakit</button>
+                  <button class="seg-btn" type="button">Kredi Kartı</button>
+                  <button class="seg-btn" type="button">Online</button>
+                </div>
+              </div>
+
+              <div class="note">
+                <span class="badge muted">Not</span>
+                Ödeme tamamlanınca park yeri “Boş” durumuna geçer (tasarım).
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SPACES -->
+      <section id="spaces" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Park Yerleri</h1>
+            <p class="muted">Boş / Dolu / Bakım durumlarına göre yönetim.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">Filtre</button>
+            <button class="btn btn-primary">+ Yeni Yer</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="chips">
+              <button class="chip-btn active">Tümü</button>
+              <button class="chip-btn">Boş</button>
+              <button class="chip-btn">Dolu</button>
+              <button class="chip-btn">Bakım</button>
+            </div>
+            <div class="selects">
+              <select>
+                <option>OTOP01</option>
+              </select>
+              <select>
+                <option>Zemin</option>
+                <option>1.Kat</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-grid">
+            <div class="space ok">
+              <div class="space-code">Z-01</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge ok">Boş</div>
+            </div>
+            <div class="space warn">
+              <div class="space-code">Z-02</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge warn">Dolu</div>
+            </div>
+            <div class="space warn">
+              <div class="space-code">Z-03</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge warn">Dolu</div>
+            </div>
+            <div class="space muted">
+              <div class="space-code">Z-04</div>
+              <div class="space-meta">Elektrikli</div>
+              <div class="badge muted">Bakım</div>
+            </div>
+            <div class="space ok">
+              <div class="space-code">Z-05</div>
+              <div class="space-meta">Engelli</div>
+              <div class="badge ok">Boş</div>
+            </div>
+            <div class="space ok">
+              <div class="space-code">Z-06</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge ok">Boş</div>
+            </div>
+            <div class="space warn">
+              <div class="space-code">1-08</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge warn">Dolu</div>
+            </div>
+            <div class="space ok">
+              <div class="space-code">1-09</div>
+              <div class="space-meta">Normal</div>
+              <div class="badge ok">Boş</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section id="customers" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Müşteri & Araçlar</h1>
+            <p class="muted">Müşteri profili, araç listesi ve geçmiş işlemler (tasarım).</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">İçe Aktar</button>
+            <button class="btn btn-primary">+ Yeni Müşteri</button>
+          </div>
+        </div>
+
+        <div class="grid two gap">
+          <div class="card">
+            <div class="card-head">
+              <h2>Müşteri Listesi</h2>
+              <span class="badge muted">Demo</span>
+            </div>
+
+            <div class="table">
+              <div class="t-row t-head">
+                <div>Ad Soyad</div>
+                <div>Telefon</div>
+                <div>E-posta</div>
+                <div></div>
+              </div>
+              <div class="t-row">
+                <div>Merve Kul</div>
+                <div class="mono">555 000 0000</div>
+                <div>merve@example.com</div>
+                <div><button class="btn btn-soft btn-xs">Aç</button></div>
+              </div>
+              <div class="t-row">
+                <div>Abdullah Emir Kireçci</div>
+                <div class="mono">555 111 2233</div>
+                <div>ae@example.com</div>
+                <div><button class="btn btn-soft btn-xs">Aç</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Müşteri Detayı</h2>
+              <span class="badge ok">Aktif</span>
+            </div>
+
+            <div class="profile" id="cust-profile">
+              <div class="avatar big" id="cust-avatar">MK</div>
+              <div>
+                <div class="strong" id="cust-name">Merve Kul</div>
+                <div class="muted small" id="cust-info">CID: 00124 • Üyelik: Aylık</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <h3 class="h3">Araçlar</h3>
+            <div class="table" id="cust-vehicles-table">
+              <div class="t-row t-head">
+                <div>Plaka</div>
+                <div>Marka</div>
+                <div>Model</div>
+                <div>Renk</div>
+              </div>
+              <div class="t-row">
+                <div class="mono">34 ABC 123</div>
+                <div>Renault</div>
+                <div>Clio</div>
+                <div>Beyaz</div>
+              </div>
+              <div class="t-row">
+                <div class="mono">34 MRV 007</div>
+                <div>Toyota</div>
+                <div>Corolla</div>
+                <div>Siyah</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <h3 class="h3">Son İşlemler</h3>
+            <div class="table" id="cust-transactions-table">
+              <div class="t-row t-head">
+                <div>Kayıt</div>
+                <div>Giriş</div>
+                <div>Çıkış</div>
+                <div>Tutar</div>
+              </div>
+              <div class="t-row">
+                <div class="mono">#1018</div>
+                <div>09:10</div>
+                <div>11:40</div>
+                <div>₺ 150</div>
+              </div>
+              <div class="t-row">
+                <div class="mono">#0992</div>
+                <div>18:02</div>
+                <div>20:15</div>
+                <div>₺ 120</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TARIFFS -->
+      <section id="tariffs" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Tarifeler</h1>
+            <p class="muted">Saatlik / özel tarifeler ve açıklamalar.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">Dışa Aktar</button>
+            <button class="btn btn-primary">+ Yeni Tarife</button>
+          </div>
+        </div>
+
+        <div class="grid cards-3">
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">HOURLY</span>
+              <span class="badge ok">Aktif</span>
+            </div>
+            <h2 class="h2">Standart Saatlik</h2>
+            <div class="price">₺ 50 / saat</div>
+            <p class="muted small">Gündüz saatleri için standart ücret.</p>
+            <div class="card-actions">
+              <button class="btn btn-soft">Düzenle</button>
+              <button class="btn btn-danger">Pasifleştir</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">HOURLY</span>
+              <span class="badge ok">Aktif</span>
+            </div>
+            <h2 class="h2">Gece Tarifesi</h2>
+            <div class="price">₺ 30 / saat</div>
+            <p class="muted small">Akşam 22:00 sonrası indirimli.</p>
+            <div class="card-actions">
+              <button class="btn btn-soft">Düzenle</button>
+              <button class="btn btn-danger">Pasifleştir</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="chip">SUBSCRIPTION</span>
+              <span class="badge warn">Plan</span>
+            </div>
+            <h2 class="h2">Aylık Abonelik</h2>
+            <div class="price">₺ 1.200 / ay</div>
+            <p class="muted small">Sınırsız giriş/çıkış (tasarım örneği).</p>
+            <div class="card-actions">
+              <button class="btn btn-soft">Detay</button>
+              <button class="btn btn-primary">Aktifleştir</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SUBSCRIPTIONS -->
+      <section id="subs" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Abonelikler</h1>
+            <p class="muted">Müşteri–tarife aboneliği yönetimi.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">Filtre</button>
+            <button class="btn btn-primary">+ Abonelik Oluştur</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table">
+            <div class="t-row t-head">
+              <div>Müşteri</div>
+              <div>Tarife</div>
+              <div>Başlangıç</div>
+              <div>Bitiş</div>
+              <div>Durum</div>
+              <div></div>
+            </div>
+            <div class="t-row">
+              <div>Merve Kul</div>
+              <div>Aylık Abonelik</div>
+              <div>01.12.2025</div>
+              <div>31.12.2025</div>
+              <div><span class="badge ok">Aktif</span></div>
+              <div><button class="btn btn-soft btn-xs">Güncelle</button></div>
+            </div>
+            <div class="t-row">
+              <div>Abdullah Emir Kireçci</div>
+              <div>Kurumsal</div>
+              <div>15.11.2025</div>
+              <div>15.01.2026</div>
+              <div><span class="badge warn">Yakında</span></div>
+              <div><button class="btn btn-soft btn-xs">Güncelle</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="reports" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Raporlar</h1>
+            <p class="muted">Anlık doluluk, aylık gelir, kullanım özeti ekran tasarımları.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-soft">CSV İndir</button>
+            <button class="btn btn-primary">PDF Oluştur</button>
+          </div>
+        </div>
+
+        <div class="grid cards-3">
+          <div class="card">
+            <h2 class="h2">Anlık Doluluk</h2>
+            <p class="muted small">Boş/Dolu/Bakım dağılımı ve oran.</p>
+            <div class="mini-chart">
+              <div class="mc-row"><span>Boş</span>
+                <div class="mc-bar">
+                  <div style="width:62%"></div>
+                </div><span>62%</span>
+              </div>
+              <div class="mc-row"><span>Dolu</span>
+                <div class="mc-bar">
+                  <div style="width:34%"></div>
+                </div><span>34%</span>
+              </div>
+              <div class="mc-row"><span>Bakım</span>
+                <div class="mc-bar">
+                  <div style="width:4%"></div>
+                </div><span>4%</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-soft">Önizleme</button>
+              <button class="btn btn-primary">Aç</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="h2">Aylık Gelir</h2>
+            <p class="muted small">Toplam gelir ve ödeme sayısı.</p>
+            <div class="spark big">
+              <span style="height:40%"></span><span style="height:55%"></span><span style="height:70%"></span>
+              <span style="height:50%"></span><span style="height:80%"></span><span style="height:60%"></span>
+              <span style="height:88%"></span>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-soft">Önizleme</button>
+              <button class="btn btn-primary">Aç</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="h2">Kullanım Özeti</h2>
+            <p class="muted small">Ortalama kalış süresi, ortalama ücret.</p>
+            <div class="list-mini">
+              <div><span class="badge muted">Ort. Süre</span><span>94 dk</span></div>
+              <div><span class="badge muted">Ort. Ücret</span><span>₺ 112</span></div>
+              <div><span class="badge muted">Ziyaret</span><span>3.104</span></div>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-soft">Önizleme</button>
+              <button class="btn btn-primary">Aç</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="section">
+        <div class="section-head">
+          <div>
+            <h1>Ayarlar</h1>
+            <p class="muted">Tasarım amaçlı ayar ekranı.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-primary">Kaydet</button>
+          </div>
+        </div>
+
+        <div class="grid two gap">
+          <div class="card">
+            <h2 class="h2">Genel</h2>
+            <div class="form">
+              <div class="field">
+                <label>Otopark Adı</label>
+                <input value="Kadıköy Otopark" />
+              </div>
+              <div class="field">
+                <label>Adres</label>
+                <input value="Kadıköy / İstanbul" />
+              </div>
+              <div class="grid two gap">
+                <div class="field">
+                  <label>Para Birimi</label>
+                  <select>
+                    <option>TRY (₺)</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Saat Dilimi</label>
+                  <select>
+                    <option>Europe/Istanbul</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="h2">Rol & Yetkiler</h2>
+            <p class="muted small">
+              Yönetici / Personel gibi roller (tasarım).
+            </p>
+            <div class="table">
+              <div class="t-row t-head">
+                <div>Rol</div>
+                <div>Yetkiler</div>
+                <div>Durum</div>
+              </div>
+              <div class="t-row">
+                <div>Yönetici</div>
+                <div>Hepsi</div>
+                <div><span class="badge ok">Aktif</span></div>
+              </div>
+              <div class="t-row">
+                <div>Personel</div>
+                <div>Giriş/Çıkış</div>
+                <div><span class="badge ok">Aktif</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span class="muted small">© Otopark Yönetim Sistemi — UI Tasarım Prototipi</span>
+        <span class="muted small">HTML + CSS</span>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- Otopark Yönetim Sistemi - Backend Entegrasyonu -->
+  <script src="app.js"></script>
+
+
+</body>
+
+</html>

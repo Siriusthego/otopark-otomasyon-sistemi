@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>API Test</title>
+</head>
+
+<body>
+    <h1>Araç Giriş Form Testi</h1>
+
+    <div>
+        <h2>Tarife API Test</h2>
+        <button onclick="testTariffs()">Test Tariffs API</button>
+        <pre id="tariff-result"></pre>
+    </div>
+
+    <div>
+        <h2>Park Yerleri API Test</h2>
+        <button onclick="testSpaces()">Test Spaces API</button>
+        <pre id="spaces-result"></pre>
+    </div>
+
+    <div>
+        <h2>Form Elemanları Test</h2>
+        <button onclick="testFormElements()">Test Form Elements</button>
+        <pre id="form-result"></pre>
+    </div>
+
+    <script>
+        async function testTariffs() {
+            try {
+                const response = await fetch('/api/tariffs.php');
+                const data = await response.json();
+                document.getElementById('tariff-result').textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                document.getElementById('tariff-result').textContent = 'ERROR: ' + e.message;
+            }
+        }
+
+        async function testSpaces() {
+            try {
+                const response = await fetch('/api/spaces.php?status=Bos');
+                const data = await response.json();
+                document.getElementById('spaces-result').textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                document.getElementById('spaces-result').textContent = 'ERROR: ' + e.message;
+            }
+        }
+
+        function testFormElements() {
+            let result = '';
+
+            const plate = document.getElementById('entry-plate');
+            const tariff = document.getElementById('entry-tariff');
+            const space = document.getElementById('entry-space');
+
+            result += 'entry-plate: ' + (plate ? 'FOUND ✓' : 'NOT FOUND ✗') + '\n';
+            result += 'entry-tariff: ' + (tariff ? 'FOUND ✓' : 'NOT FOUND ✗') + '\n';
+            result += 'entry-space: ' + (space ? 'FOUND ✓' : 'NOT FOUND ✗') + '\n';
+
+            document.getElementById('form-result').textContent = result;
+        }
+    </script>
+
+    <!-- Simulated form elements -->
+    <div style="display:none">
+        <input id="entry-plate">
+        <select id="entry-tariff"></select>
+        <select id="entry-space"></select>
+    </div>
+</body>
+
+</html>
