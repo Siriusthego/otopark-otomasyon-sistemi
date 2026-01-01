@@ -460,6 +460,9 @@ function setupNavigation() {
                     if (targetId === 'exit') loadExitRecords();
                     if (targetId === 'spaces') loadSpaces();
                     if (targetId === 'customers') loadCustomers();
+                    if (targetId === 'tariffs') loadTariffs();
+                    if (targetId === 'subs') loadSubscriptions();
+                    if (targetId === 'reports') initReportsPage();
                 } else {
                     section.style.display = 'none';
                 }
@@ -503,18 +506,30 @@ async function loadCustomers() {
                 <div>${customer.name}</div>
                 <div class="mono">${customer.phone || '-'}</div>
                 <div>${customer.email || '-'}</div>
-                <div><button class="btn btn-soft btn-xs customer-detail-btn" data-cid="${customer.cid}">Aç</button></div>
+                <div>
+                    <button class="btn btn-soft btn-xs customer-detail-btn" data-cid="${customer.cid}">Aç</button>
+                    <button class="btn btn-danger btn-xs customer-delete-btn" data-cid="${customer.cid}">Sil</button>
+                </div>
             </div>
         `;
     });
 
     container.innerHTML = html;
 
-    // Event delegation
+    // Event delegation - Detail buttons
     container.querySelectorAll('.customer-detail-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const cid = parseInt(btn.getAttribute('data-cid'));
             loadCustomerDetails(cid);
+        });
+    });
+
+    // Event delegation - Delete buttons
+    container.querySelectorAll('.customer-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Satır seçimini engelle
+            const cid = parseInt(btn.getAttribute('data-cid'));
+            deleteCustomer(cid);
         });
     });
 }
@@ -610,6 +625,208 @@ async function loadCustomerDetails(cid) {
 }
 
 // =============================================
+// TARİFE YÖNETİMİ
+// =============================================
+
+/**
+ * Tarifeleri yükle ve card'lara doldur
+ */
+async function loadTariffs() {
+    const result = await apiCall('/tariffs.php?all=1');
+
+    if (!result.success) {
+        showNotification('Tarifeler yüklenemedi', 'error');
+        return;
+    }
+
+    const tariffs = result.data;
+    const container = document.getElementById('tariffs-container');
+
+    if (!container) return;
+
+    let html = '';
+
+    tariffs.forEach(tariff => {
+        const isActive = tariff.is_active == 1;
+        const badgeClass = isActive ? 'ok' : 'muted';
+        const badgeText = isActive ? 'Aktif' : 'Pasif';
+        const actionBtn = isActive
+            ? '<button class="btn btn-danger tariff-toggle-btn" data-tid="' + tariff.tid + '" data-active="1">Pasifleştir</button>'
+            : '<button class="btn btn-primary tariff-toggle-btn" data-tid="' + tariff.tid + '" data-active="0">Aktifleştir</button>';
+
+        html += '<div class="card">';
+        html += '<div class="card-top">';
+        html += '<span class="chip">' + tariff.type + '</span>';
+        html += '<span class="badge ' + badgeClass + '">' + badgeText + '</span>';
+        html += '</div>';
+        html += '<h2 class="h2">' + tariff.name + '</h2>';
+        html += '<div class="price">₺ ' + parseFloat(tariff.hourly_rate).toFixed(0) + ' / saat</div>';
+        html += '<p class="muted small">' + (tariff.description || '-') + '</p>';
+        html += '<div class="card-actions">';
+        html += '<button class="btn btn-soft tariff-edit-btn" data-tid="' + tariff.tid + '">Düzenle</button>';
+        html += actionBtn;
+        html += '</div>';
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+
+    // Event delegation
+    container.querySelectorAll('.tariff-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => editTariff(parseInt(btn.getAttribute('data-tid'))));
+    });
+
+    container.querySelectorAll('.tariff-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tid = parseInt(btn.getAttribute('data-tid'));
+            const isActive = btn.getAttribute('data-active') == '1';
+            toggleTariffStatus(tid, isActive);
+        });
+    });
+}
+
+/**
+ * Yeni tarife ekle
+ */
+async function addNewTariff() {
+    const name = prompt('Tarife Adı:');
+    if (!name || name.trim() === '') return;
+
+    const typeInput = prompt('Tarife Tipi (HOURLY veya SUBSCRIPTION):', 'HOURLY');
+    const type = typeInput && typeInput.toUpperCase() === 'SUBSCRIPTION' ? 'SUBSCRIPTION' : 'HOURLY';
+
+    const rateInput = prompt('Saatlik Ücret (₺):');
+    const hourly_rate = parseFloat(rateInput);
+
+    if (isNaN(hourly_rate) || hourly_rate <= 0) {
+        showNotification('Geçerli bir ücret giriniz', 'error');
+        return;
+    }
+
+    const description = prompt('Açıklama (opsiyonel):');
+
+    const result = await apiCall('/tariffs.php', 'POST', {
+        name: name.trim(),
+        type: type,
+        hourly_rate: hourly_rate,
+        description: description ? description.trim() : ''
+    });
+
+    if (result.success) {
+        showNotification('Tarife başarıyla eklendi!', 'success');
+        loadTariffs();
+        setupEntryForm(); // Araç girişi dropdown'ını güncelle
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+/**
+ * Tarife düzenle
+ */
+async function editTariff(tid) {
+    // Önce mevcut tarife bilgisini al
+    const tariffsResult = await apiCall('/tariffs.php?all=1');
+    if (!tariffsResult.success) return;
+
+    const tariff = tariffsResult.data.find(t => t.tid == tid);
+    if (!tariff) {
+        showNotification('Tarife bulunamadı', 'error');
+        return;
+    }
+
+    const name = prompt('Tarife Adı:', tariff.name);
+    if (!name || name.trim() === '') return;
+
+    const rateInput = prompt('Saatlik Ücret (₺):', tariff.hourly_rate);
+    const hourly_rate = parseFloat(rateInput);
+
+    if (isNaN(hourly_rate) || hourly_rate <= 0) {
+        showNotification('Geçerli bir ücret giriniz', 'error');
+        return;
+    }
+
+    const description = prompt('Açıklama:', tariff.description || '');
+
+    const result = await apiCall('/tariffs.php', 'PUT', {
+        tid: tid,
+        name: name.trim(),
+        hourly_rate: hourly_rate,
+        description: description ? description.trim() : ''
+    });
+
+    if (result.success) {
+        showNotification('Tarife başarıyla güncellendi!', 'success');
+        loadTariffs();
+        setupEntryForm();
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+/**
+ * Tarife aktif/pasif durumu değiştir
+ */
+async function toggleTariffStatus(tid, currentlyActive) {
+    const action = currentlyActive ? 'pasifleştirmek' : 'aktifleştirmek';
+    const confirmed = confirm('Bu tarifeyi ' + action + ' istediğinize emin misiniz?');
+
+    if (!confirmed) return;
+
+    const result = await apiCall('/tariffs.php', 'PATCH', {
+        tid: tid,
+        is_active: !currentlyActive
+    });
+
+    if (result.success) {
+        showNotification(result.message, 'success');
+        loadTariffs();
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+// =============================================
+// ABONELİK YÖNETİMİ
+// =============================================
+
+/**
+ * Abonelikleri yükle
+ */
+async function loadSubscriptions() {
+    const result = await apiCall('/subscriptions.php');
+
+    if (!result.success) {
+        showNotification('Abonelikler yüklenemedi', 'error');
+        return;
+    }
+
+    const subscriptions = result.data;
+    const container = document.getElementById('subs-table');
+
+    if (!container) return;
+
+    let html = '<div class="t-row t-head"><div>Müşteri</div><div>Tarife</div><div>Başlangıç</div><div>Bitiş</div><div>Durum</div></div>';
+
+    if (subscriptions.length === 0) {
+        html += '<div class="t-row"><div colspan="5" style="text-align:center; padding:20px;">Abonelik yok</div></div>';
+    } else {
+        subscriptions.forEach(sub => {
+            const badgeClass = sub.status === 'Aktif' ? 'ok' : (sub.status === 'Yakında' ? 'warn' : 'muted');
+            html += '<div class="t-row" style="cursor:pointer;" data-sub-id="' + sub.sub_id + '">';
+            html += '<div>' + sub.customer_name + '</div>';
+            html += '<div>' + sub.tariff_name + '</div>';
+            html += '<div>' + sub.start_date + '</div>';
+            html += '<div>' + sub.end_date + '</div>';
+            html += '<div><span class="badge ' + badgeClass + '">' + sub.status + '</span></div>';
+            html += '</div>';
+        });
+    }
+
+    container.innerHTML = html;
+}
+
+// =============================================
 // SEGMENTED CONTROL
 // =============================================
 
@@ -663,6 +880,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadExitRecords();
     loadSpaces();
     loadCustomers();
+    loadTariffs();
+    loadSubscriptions();
+    setupReportButtons(); // Reports butonları bağla
 
     // Customer management button
     const addCustomerBtn = document.querySelector('#customers .btn-primary');
@@ -670,5 +890,220 @@ document.addEventListener('DOMContentLoaded', () => {
         addCustomerBtn.addEventListener('click', addNewCustomer);
     }
 
+    // Tariff management button
+    const addTariffBtn = document.querySelector('#tariffs .btn-primary');
+    if (addTariffBtn) {
+        addTariffBtn.addEventListener('click', addNewTariff);
+    }
+
+    // Subscription create button
+    const addSubBtn = document.getElementById('subs-create-btn');
+    if (addSubBtn) {
+        addSubBtn.addEventListener('click', createSubscription);
+    }
+
     console.log('✅ Sistem hazır!');
 });
+
+// Basit abonelik oluşturma fonksiyonu (prompt-based)
+async function createSubscription() {
+    const customersResult = await apiCall('/customers.php');
+    const tariffsResult = await apiCall('/tariffs.php?all=1');
+
+    if (!customersResult.success || !tariffsResult.success) {
+        showNotification('Müşteri ve tarife listesi yüklenemedi', 'error');
+        return;
+    }
+
+    // Müşteri seç
+    let customerList = 'Müşteri ID girin:\n\n';
+    customersResult.data.forEach(c => {
+        customerList += c.cid + ': ' + c.name + '\n';
+    });
+    const cidInput = prompt(customerList);
+    const cid = parseInt(cidInput);
+    if (!cid || cid <= 0) return;
+
+    // Tarife seç (sadece SUBSCRIPTION tipinde olanlar)
+    const subscriptionTariffs = tariffsResult.data.filter(t => t.type === 'SUBSCRIPTION');
+    let tariffList = 'Tarife ID girin:\n\n';
+    subscriptionTariffs.forEach(t => {
+        tariffList += t.tid + ': ' + t.name + ' (' + t.hourly_rate + '₺/ay)\n';
+    });
+    const tidInput = prompt(tariffList);
+    const tid = parseInt(tidInput);
+    if (!tid || tid <= 0) return;
+
+    // Tarihler
+    const start_date = prompt('Başlangıç tarihi (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!start_date) return;
+
+    const end_date = prompt('Bitiş tarihi (YYYY-MM-DD):');
+    if (!end_date) return;
+
+    const status = prompt('Durum (Aktif/Yakında/Pasif):', 'Aktif');
+
+    const result = await apiCall('/subscription_create.php', 'POST', {
+        cid: cid,
+        tid: tid,
+        start_date: start_date,
+        end_date: end_date,
+        status: status || 'Aktif'
+    });
+
+    if (result.success) {
+        showNotification('Abonelik başarıyla oluşturuldu!', 'success');
+        loadSubscriptions();
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+// ==============================================
+// RAPORLAR
+// ==============================================
+
+let currentReportRange = 'month';
+let activeReportType = 'occupancy';
+
+async function initReportsPage(range = 'month') {
+    currentReportRange = range;
+    await loadReportsSummary(range);
+    setupReportButtons();
+}
+
+async function loadReportsSummary(range) {
+    const result = await apiCall('/reports_summary.php?range=' + range);
+    if (!result.success) {
+        showNotification('Raporlar yüklenemedi', 'error');
+        return;
+    }
+
+    const data = result.data;
+
+    // Doluluk
+    const occAvail = document.getElementById('rep-occ-available');
+    const occOccupied = document.getElementById('rep-occ-occupied');
+    if (occAvail) occAvail.textContent = data.occupancy.available_rate + '%';
+    if (occOccupied) occOccupied.textContent = data.occupancy.occupied_rate + '%';
+
+    showNotification('Raporlar güncellendi', 'success');
+}
+
+// CSV/PDF Download - TÜM RAPORLAR BİRLEŞİK
+document.addEventListener('DOMContentLoaded', () => {
+    const csvBtn = document.getElementById('reports-csv-btn');
+    const pdfBtn = document.getElementById('reports-pdf-btn');
+
+    if (csvBtn) {
+        csvBtn.addEventListener('click', () => {
+            const year = new Date().getFullYear();
+            const month = new Date().getMonth() + 1;
+            window.location = '/api/report_export_all_csv.php?range=' + currentReportRange + '&year=' + year + '&month=' + month;
+        });
+    }
+
+    if (pdfBtn) {
+        pdfBtn.addEventListener('click', () => {
+            const year = new Date().getFullYear();
+            const month = new Date().getMonth() + 1;
+            window.open('/api/report_export_all_pdf.php?range=' + currentReportRange + '&year=' + year + '&month=' + month, '_blank');
+        });
+    }
+});
+
+// Preview ve Open fonksiyonları
+async function showReportPreview(type) {
+    activeReportType = type;
+    let result;
+
+    if (type === 'occupancy') {
+        result = await apiCall('/report_occupancy.php');
+    } else if (type === 'revenue') {
+        const year = new Date().getFullYear();
+        const month = new Date().getMonth() + 1;
+        result = await apiCall('/report_revenue_monthly.php?year=' + year + '&month=' + month);
+    } else if (type === 'usage') {
+        result = await apiCall('/report_usage.php?range=' + currentReportRange);
+    }
+
+    if (!result.success) {
+        showNotification('Rapor yüklenemedi', 'error');
+        return;
+    }
+
+    // Basit alert ile göster (modal yerine)
+    let content = 'RAPOR ÖNİZLEME\n\n';
+    if (type === 'occupancy') {
+        content += 'Toplam: ' + result.data.total + '\n';
+        content += 'Boş: ' + result.data.available + ' (' + result.data.available_rate + '%)\n';
+        content += 'Dolu: ' + result.data.occupied + ' (' + result.data.occupied_rate + '%)\n';
+        content += 'Bakım: ' + result.data.maintenance + ' (' + result.data.maintenance_rate + '%)';
+    } else if (type === 'revenue') {
+        content += 'Ay: ' + result.data.year + '/' + result.data.month + '\n';
+        content += 'Toplam: ₺' + result.data.monthly_total + '\n';
+        content += 'Gün sayısı: ' + result.data.series.length;
+    } else if (type === 'usage') {
+        content += 'Ort. Süre: ' + result.data.avg_duration_min + ' dk\n';
+        content += 'Ort. Ücret: ₺' + result.data.avg_fee + '\n';
+        content += 'Ziyaret: ' + result.data.visit_count;
+    }
+
+    alert(content);
+}
+
+function openReportDetail(type) {
+    activeReportType = type;
+    const year = new Date().getFullYear();
+    const month = new Date().getMonth() + 1;
+
+    let url = '/api/report_export_pdf.php?type=' + type + '&range=' + currentReportRange;
+    if (type === 'revenue') {
+        url += '&year=' + year + '&month=' + month;
+    }
+
+    window.open(url, '_blank');
+}
+
+
+// Event listeners için init fonksiyonunu güncelle
+function setupReportButtons() {
+    const cards = document.querySelectorAll('#reports .card[data-report]');
+    cards.forEach(card => {
+        const type = card.getAttribute('data-report');
+        const previewBtn = card.querySelector('.report-preview');
+        const openBtn = card.querySelector('.report-open');
+
+        if (previewBtn) {
+            previewBtn.addEventListener('click', () => showReportPreview(type));
+        }
+
+        if (openBtn) {
+            openBtn.addEventListener('click', () => openReportDetail(type));
+        }
+    });
+}
+
+/**
+ * Müşteri silme fonksiyonu
+ */
+async function deleteCustomer(cid) {
+    // Confirm dialog
+    const confirmed = confirm('Bu müşteriyi silmek istediğinize emin misiniz?\n\nNot: Aktif aboneliği veya içeride aracı varsa silinemez.');
+    if (!confirmed) return;
+    
+    const result = await apiCall('/customer_delete.php', 'POST', { cid: cid });
+    
+    if (result.success) {
+        showNotification(result.message, 'success');
+        loadCustomers(); // Listeyi yenile
+        
+        // Sağ paneli temizle veya ilk müşteriyi seç
+        const custName = document.getElementById('cust-name');
+        if (custName) {
+            custName.textContent = 'Müşteri seçin';
+        }
+    } else {
+        showNotification(result.error, 'error');
+    }
+}

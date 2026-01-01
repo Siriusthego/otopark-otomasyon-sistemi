@@ -596,7 +596,7 @@
           </div>
         </div>
 
-        <div class="grid cards-3">
+        <div class="grid cards-3" id="tariffs-container">
           <div class="card">
             <div class="card-top">
               <span class="chip">HOURLY</span>
@@ -650,12 +650,12 @@
           </div>
           <div class="section-actions">
             <button class="btn btn-soft">Filtre</button>
-            <button class="btn btn-primary">+ Abonelik Oluştur</button>
+            <button class="btn btn-primary" id="subs-create-btn">+ Abonelik Oluştur</button>
           </div>
         </div>
 
         <div class="card">
-          <div class="table">
+          <div class="table" id="subs-table">
             <div class="t-row t-head">
               <div>Müşteri</div>
               <div>Tarife</div>
@@ -692,39 +692,39 @@
             <p class="muted">Anlık doluluk, aylık gelir, kullanım özeti ekran tasarımları.</p>
           </div>
           <div class="section-actions">
-            <button class="btn btn-soft">CSV İndir</button>
-            <button class="btn btn-primary">PDF Oluştur</button>
+            <button class="btn btn-soft" id="reports-csv-btn">CSV İndir</button>
+            <button class="btn btn-primary" id="reports-pdf-btn">PDF Oluştur</button>
           </div>
         </div>
 
         <div class="grid cards-3">
-          <div class="card">
+          <div class="card" data-report="occupancy">
             <h2 class="h2">Anlık Doluluk</h2>
             <p class="muted small">Boş/Dolu/Bakım dağılımı ve oran.</p>
             <div class="mini-chart">
               <div class="mc-row"><span>Boş</span>
                 <div class="mc-bar">
                   <div style="width:62%"></div>
-                </div><span>62%</span>
+                </div><span id="rep-occ-available">96%</span>
               </div>
               <div class="mc-row"><span>Dolu</span>
                 <div class="mc-bar">
                   <div style="width:34%"></div>
-                </div><span>34%</span>
+                </div><span id="rep-occ-occupied">4%</span>
               </div>
               <div class="mc-row"><span>Bakım</span>
                 <div class="mc-bar">
                   <div style="width:4%"></div>
-                </div><span>4%</span>
+                </div><span id="rep-occ-maint">0%</span>
               </div>
             </div>
             <div class="card-actions">
-              <button class="btn btn-soft">Önizleme</button>
-              <button class="btn btn-primary">Aç</button>
+              <button class="btn btn-soft report-preview">Önizleme</button>
+              <button class="btn btn-primary report-open">Aç</button>
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" data-report="revenue">
             <h2 class="h2">Aylık Gelir</h2>
             <p class="muted small">Toplam gelir ve ödeme sayısı.</p>
             <div class="spark big">
@@ -733,22 +733,22 @@
               <span style="height:88%"></span>
             </div>
             <div class="card-actions">
-              <button class="btn btn-soft">Önizleme</button>
-              <button class="btn btn-primary">Aç</button>
+              <button class="btn btn-soft report-preview">Önizleme</button>
+              <button class="btn btn-primary report-open">Aç</button>
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" data-report="usage">
             <h2 class="h2">Kullanım Özeti</h2>
             <p class="muted small">Ortalama kalış süresi, ortalama ücret.</p>
             <div class="list-mini">
-              <div><span class="badge muted">Ort. Süre</span><span>94 dk</span></div>
-              <div><span class="badge muted">Ort. Ücret</span><span>₺ 112</span></div>
-              <div><span class="badge muted">Ziyaret</span><span>3.104</span></div>
+              <div><span class="badge muted">Ort. Süre</span><span id="rep-usage-duration">16 dk</span></div>
+              <div><span class="badge muted">Ort. Ücret</span><span id="rep-usage-fee">₺8</span></div>
+              <div><span class="badge muted">Ziyaret</span><span id="rep-usage-visits">1</span></div>
             </div>
             <div class="card-actions">
-              <button class="btn btn-soft">Önizleme</button>
-              <button class="btn btn-primary">Aç</button>
+              <button class="btn btn-soft report-preview">Önizleme</button>
+              <button class="btn btn-primary report-open">Aç</button>
             </div>
           </div>
         </div>

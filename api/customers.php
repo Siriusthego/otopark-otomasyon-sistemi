@@ -11,16 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Müşteri listesini getir
     try {
         $stmt = $pdo->query("
-            SELECT 
-                c.*,
-                COUNT(DISTINCT v.vid) as vehicle_count
-            FROM customer c
-            LEFT JOIN vehicle v ON c.cid = v.cid
-            WHERE c.name NOT LIKE 'Otomatik-%'
-            GROUP BY c.cid
+            SELECT cid, name 
+            FROM customer 
+            WHERE name NOT LIKE 'Otomatik-%'
+            AND is_active = 1
             ORDER BY 
-                CASE WHEN c.cid = 999 THEN 0 ELSE 1 END,
-                c.created_at DESC
+                CASE WHEN cid = 999 THEN 0 ELSE 1 END,
+                name ASC
         ");
         $customers = $stmt->fetchAll();
 
