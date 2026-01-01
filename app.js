@@ -3,8 +3,14 @@
  * API entegrasyonu ve dinamik veri yükleme
  */
 
-// API Base URL (production'da değiştirin)
-const API_BASE = '/api';
+// API Base URL - Otomatik path detection (subdirectory desteği)
+const API_BASE = (() => {
+    const path = window.location.pathname;
+    if (path.includes('/otopark/')) {
+        return '/otopark/api';
+    }
+    return '/api';
+})();
 
 // =============================================
 // HELPER FUNCTIONS
@@ -458,7 +464,12 @@ function setupNavigation() {
                     if (targetId === 'dashboard') loadDashboard();
                     if (targetId === 'entry') setupEntryForm();
                     if (targetId === 'exit') loadExitRecords();
-                    if (targetId === 'spaces') loadSpaces();
+                    if (targetId === 'spaces') {
+                        (async () => {
+                            await loadParkingLotsForFilter();
+                            await loadSpaces();
+                        })();
+                    }
                     if (targetId === 'customers') loadCustomers();
                     if (targetId === 'tariffs') loadTariffs();
                     if (targetId === 'subs') loadSubscriptions();
@@ -516,21 +527,37 @@ async function loadCustomers() {
 
     container.innerHTML = html;
 
-    // Event delegation - Detail buttons
-    container.querySelectorAll('.customer-detail-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const cid = parseInt(btn.getAttribute('data-cid'));
-            loadCustomerDetails(cid);
-        });
-    });
+    // Event delegation for customer detail, delete, and add vehicle buttons
+    document.addEventListener('click', (e) => {
+        // Müşteri detay butonları
+        if (e.target.classList.contains('customer-detail-btn')) {
+            const cid = parseInt(e.target.getAttribute('data-cid'));
+            if (cid) {
+                loadCustomerDetails(cid);
+            }
+        }
 
-    // Event delegation - Delete buttons
-    container.querySelectorAll('.customer-delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        // Müşteri sil butonları
+        if (e.target.classList.contains('customer-delete-btn')) {
             e.stopPropagation(); // Satır seçimini engelle
-            const cid = parseInt(btn.getAttribute('data-cid'));
-            deleteCustomer(cid);
-        });
+            const cid = parseInt(e.target.getAttribute('data-cid'));
+            if (cid) {
+                deleteCustomer(cid);
+            }
+        }
+
+        // Araç ekle butonu
+        if (e.target.id === 'customer-add-vehicle-btn') {
+            // Son açılan müşterinin cid'sini al
+            const cidElement = document.getElementById('cust-info');
+            if (cidElement) {
+                const match = cidElement.textContent.match(/CID:\s*(\d+)/);
+                if (match) {
+                    const cid = parseInt(match[1]);
+                    openAddVehicleModal(cid);
+                }
+            }
+        }
     });
 }
 
@@ -806,24 +833,33 @@ async function loadSubscriptions() {
 
     if (!container) return;
 
-    let html = '<div class="t-row t-head"><div>Müşteri</div><div>Tarife</div><div>Başlangıç</div><div>Bitiş</div><div>Durum</div></div>';
+    let html = '<div class="t-row t-head"><div>Müşteri</div><div>Tarife</div><div>Başlangıç</div><div>Bitiş</div><div>Durum</div><div></div></div>';
 
     if (subscriptions.length === 0) {
-        html += '<div class="t-row"><div colspan="5" style="text-align:center; padding:20px;">Abonelik yok</div></div>';
+        html += '<div class="t-row"><div colspan="6" style="text-align:center; padding:20px;">Abonelik yok</div></div>';
     } else {
         subscriptions.forEach(sub => {
             const badgeClass = sub.status === 'Aktif' ? 'ok' : (sub.status === 'Yakında' ? 'warn' : 'muted');
-            html += '<div class="t-row" style="cursor:pointer;" data-sub-id="' + sub.sub_id + '">';
+            html += '<div class="t-row">';
             html += '<div>' + sub.customer_name + '</div>';
             html += '<div>' + sub.tariff_name + '</div>';
             html += '<div>' + sub.start_date + '</div>';
             html += '<div>' + sub.end_date + '</div>';
             html += '<div><span class="badge ' + badgeClass + '">' + sub.status + '</span></div>';
+            html += '<div><button class="btn btn-soft btn-xs sub-update-btn" data-sub-id="' + sub.sub_id + '">Güncelle</button></div>';
             html += '</div>';
         });
     }
 
     container.innerHTML = html;
+
+    // Event delegation - Update buttons
+    container.querySelectorAll('.sub-update-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const sub_id = parseInt(btn.getAttribute('data-sub-id'));
+            updateSubscription(sub_id);
+        });
+    });
 }
 
 // =============================================
@@ -878,11 +914,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Preload data for all pages (eager loading for better UX)
     setupEntryForm();
     loadExitRecords();
-    loadSpaces();
     loadCustomers();
     loadTariffs();
     loadSubscriptions();
-    setupReportButtons(); // Reports butonları bağla
+    setupReportButtons();
+    setupSpacesPage();
+    loadParkingLotsForFilter();
+    loadSpaces();
 
     // Customer management button
     const addCustomerBtn = document.querySelector('#customers .btn-primary');
@@ -981,11 +1019,27 @@ async function loadReportsSummary(range) {
 
     const data = result.data;
 
-    // Doluluk
+    // 1) DOLULUK
     const occAvail = document.getElementById('rep-occ-available');
     const occOccupied = document.getElementById('rep-occ-occupied');
+    const occMaint = document.getElementById('rep-occ-maint');
     if (occAvail) occAvail.textContent = data.occupancy.available_rate + '%';
     if (occOccupied) occOccupied.textContent = data.occupancy.occupied_rate + '%';
+    if (occMaint) occMaint.textContent = data.occupancy.maintenance_rate + '%';
+
+    // 2) AYLIK GELİR
+    const revTotal = document.getElementById('rep-rev-total');
+    if (revTotal) {
+        revTotal.textContent = '₺' + new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(data.monthly_revenue.monthly_total);
+    }
+
+    // 3) KULLANIM ÖZETİ
+    const usageDuration = document.getElementById('rep-usage-duration');
+    const usageFee = document.getElementById('rep-usage-fee');
+    const usageVisits = document.getElementById('rep-usage-visits');
+    if (usageDuration) usageDuration.textContent = data.usage.avg_duration_min + ' dk';
+    if (usageFee) usageFee.textContent = '₺' + data.usage.avg_fee;
+    if (usageVisits) usageVisits.textContent = new Intl.NumberFormat('tr-TR').format(data.usage.visit_count);
 
     showNotification('Raporlar güncellendi', 'success');
 }
@@ -1091,13 +1145,13 @@ async function deleteCustomer(cid) {
     // Confirm dialog
     const confirmed = confirm('Bu müşteriyi silmek istediğinize emin misiniz?\n\nNot: Aktif aboneliği veya içeride aracı varsa silinemez.');
     if (!confirmed) return;
-    
+
     const result = await apiCall('/customer_delete.php', 'POST', { cid: cid });
-    
+
     if (result.success) {
         showNotification(result.message, 'success');
         loadCustomers(); // Listeyi yenile
-        
+
         // Sağ paneli temizle veya ilk müşteriyi seç
         const custName = document.getElementById('cust-name');
         if (custName) {
@@ -1107,3 +1161,430 @@ async function deleteCustomer(cid) {
         showNotification(result.error, 'error');
     }
 }
+
+/**
+ * Abonelik güncelleme fonksiyonu
+ */
+async function updateSubscription(sub_id) {
+    // Detayı çek
+    const detailResult = await apiCall('/subscription_detail.php?sub_id=' + sub_id);
+    if (!detailResult.success) {
+        showNotification('Abonelik detayı yüklenemedi', 'error');
+        return;
+    }
+
+    const sub = detailResult.data;
+
+    // Prompt ile güncelleme
+    const start_date = prompt('Başlangıç tarihi (YYYY-MM-DD):', sub.start_date);
+    if (!start_date) return;
+
+    const end_date = prompt('Bitiş tarihi (YYYY-MM-DD):', sub.end_date);
+    if (!end_date) return;
+
+    const status = prompt('Durum (Aktif/Yakında/Pasif/İptal):', sub.status);
+    if (!status) return;
+
+    // Güncelle
+    const result = await apiCall('/subscription_update.php', 'POST', {
+        sub_id: sub_id,
+        cid: sub.cid,
+        tid: sub.tid,
+        start_date: start_date,
+        end_date: end_date,
+        status: status
+    });
+
+    if (result.success) {
+        showNotification('Abonelik güncellendi!', 'success');
+        loadSubscriptions();
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+// ==============================================
+// PARK YERLERİ (SPACES) FİLTRELEME VE EKLEME
+// ==============================================
+
+// Global filter state
+let spacesFilterState = {
+    status: '',      // '' | 'Bos' | 'Dolu' | 'Bakim'
+    lot_code: '',    // OTOP01, etc.
+    floor_id: ''     // 1, 2, 3, etc.
+};
+
+/**
+ * Otopark ve kat dropdown'larını yükle
+ */
+async function loadParkingLotsForFilter() {
+    try {
+        console.log('🚗 Loading parking lots...');
+        const lotsResult = await apiCall('/parking_lots.php');
+        console.log('Lots result:', lotsResult);
+
+        if (!lotsResult.success) {
+            console.error('Failed to load parking lots:', lotsResult);
+            return;
+        }
+
+        const lotSelect = document.getElementById('spaces-lot-filter');
+        if (!lotSelect) {
+            console.error('Lot select not found');
+            return;
+        }
+
+        let html = '<option value="">Tüm Otoparklar</option>';
+        lotsResult.data.forEach(lot => {
+            html += '<option value="' + lot.code + '">' + lot.name + '</option>';
+        });
+        lotSelect.innerHTML = html;
+
+        // İlk otoparkı seç ve katlarını yükle
+        if (lotsResult.data.length > 0) {
+            spacesFilterState.lot_code = lotsResult.data[0].code;
+            lotSelect.value = spacesFilterState.lot_code;
+            await loadFloorsForFilter(spacesFilterState.lot_code);
+        }
+
+        console.log('✅ Parking lots loaded');
+    } catch (error) {
+        console.error('Error loading parking lots:', error);
+    }
+}
+
+/**
+ * Seçili otoparkın katlarını yükle
+ */
+async function loadFloorsForFilter(lot_code) {
+    const floorsResult = await apiCall('/floors.php?lot_code=' + lot_code);
+    if (!floorsResult.success) return;
+
+    const floorSelect = document.getElementById('spaces-floor-filter');
+    if (!floorSelect) return;
+
+    let html = '<option value="">Tüm Katlar</option>';
+    floorsResult.data.forEach(floor => {
+        html += '<option value="' + floor.floor_id + '">' + floor.name + '</option>';
+    });
+    floorSelect.innerHTML = html;
+
+    // İlk katı seç
+    if (floorsResult.data.length > 0) {
+        spacesFilterState.floor_id = parseInt(floorsResult.data[0].floor_id);
+        floorSelect.value = spacesFilterState.floor_id;
+    } else {
+        spacesFilterState.floor_id = '';
+    }
+}
+
+/**
+ * Park yerlerini filtreli yükle
+ */
+async function loadSpaces() {
+    // Query string oluştur
+    let query = '?';
+    if (spacesFilterState.status) query += 'status=' + spacesFilterState.status + '&';
+    if (spacesFilterState.lot_code) query += 'lot_code=' + spacesFilterState.lot_code + '&';
+    if (spacesFilterState.floor_id) query += 'floor_id=' + parseInt(spacesFilterState.floor_id) + '&';
+
+    console.log('🔍 Loading spaces with filters:', spacesFilterState);
+
+    const result = await apiCall('/spaces.php' + query);
+    if (!result.success) {
+        showNotification('Park yerleri yüklenemedi', 'error');
+        return;
+    }
+
+    const spaces = result.data.spaces || [];
+    console.log('📦 Loaded spaces count:', spaces.length);
+
+    const container = document.querySelector('#spaces .space-grid');
+    if (!container) return;
+
+    if (spaces.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">Filtre kriterlerine uygun park yeri bulunamadı</div>';
+        return;
+    }
+
+    let html = '';
+    spaces.forEach(space => {
+        const statusClass = space.status === 'Bos' ? 'ok' : (space.status === 'Dolu' ? 'warn' : 'muted');
+        html += '<div class="space ' + statusClass + '">';
+        html += '  <div class="space-code">' + space.space_code + '</div>';
+        html += '  <div class="space-meta">' + space.floor_name + '</div>';
+        html += '  <div class="badge ' + statusClass + '">' + space.status + '</div>';
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+/**
+ * Yeni park yeri modal'ını aç
+ */
+async function addNewSpace() {
+    console.log('Opening new space modal');
+
+    const modal = document.getElementById('new-space-modal');
+    const modalLotSelect = document.getElementById('modal-lot-select');
+    const modalFloorSelect = document.getElementById('modal-floor-select');
+    const modalSpaceCode = document.getElementById('modal-space-code');
+
+    // Otoparkları yükle
+    const lotsResult = await apiCall('/parking_lots.php');
+    if (!lotsResult.success) {
+        showNotification('Otoparklar yüklenemedi', 'error');
+        return;
+    }
+
+    // Otopark dropdown'unu doldur
+    let html = '';
+    lotsResult.data.forEach(lot => {
+        html += '<option value="' + lot.code + '">' + lot.name + '</option>';
+    });
+    modalLotSelect.innerHTML = html;
+
+    // İlk otoparkın katlarını yükle
+    if (lotsResult.data.length > 0) {
+        await loadModalFloors(lotsResult.data[0].code);
+    }
+
+    // Lot değişince katları güncelle
+    modalLotSelect.onchange = async () => {
+        await loadModalFloors(modalLotSelect.value);
+    };
+
+    // Modal'ı göster
+    modal.style.display = 'flex';
+    modalSpaceCode.focus();
+}
+
+/**
+ * Modal için katları yükle
+ */
+async function loadModalFloors(lot_code) {
+    const modalFloorSelect = document.getElementById('modal-floor-select');
+    const floorsResult = await apiCall('/floors.php?lot_code=' + lot_code);
+
+    if (!floorsResult.success) return;
+
+    let html = '';
+    floorsResult.data.forEach(floor => {
+        html += '<option value="' + floor.floor_id + '">' + floor.name + '</option>';
+    });
+    modalFloorSelect.innerHTML = html;
+}
+
+/**
+ * Modal'ı kapat
+ */
+function closeNewSpaceModal() {
+    const modal = document.getElementById('new-space-modal');
+    modal.style.display = 'none';
+
+    // Form'u temizle
+    document.getElementById('modal-space-code').value = '';
+}
+
+/**
+ * Modal'dan yeni park yeri kaydet
+ */
+async function saveNewSpaceFromModal() {
+    const floor_id = parseInt(document.getElementById('modal-floor-select').value);
+    const floor_name = document.getElementById('modal-floor-select').selectedOptions[0].text;
+    let space_code = document.getElementById('modal-space-code').value.trim();
+    const space_type = document.getElementById('modal-space-type').value;
+
+    if (!space_code) {
+        showNotification('Park yeri kodu gerekli', 'error');
+        return;
+    }
+
+    // Otomatik formatla: Sadece sayı girilirse kat prefix'i ekle
+    if (/^\d+$/.test(space_code)) {
+        // Kat adından prefix al (Zemin->Z, 1.Kat->1, 2.Kat->2)
+        let prefix = 'Z';
+        if (floor_name.includes('Zemin')) prefix = 'Z';
+        else if (floor_name.includes('1.Kat') || floor_name.includes('1. Kat')) prefix = '1';
+        else if (floor_name.includes('2.Kat') || floor_name.includes('2. Kat')) prefix = '2';
+        else if (floor_name.includes('3.Kat') || floor_name.includes('3. Kat')) prefix = '3';
+
+        // Sayıyı 2 haneli yap
+        const num = space_code.padStart(2, '0');
+        space_code = prefix + '-' + num;
+
+        console.log('Auto-formatted code:', space_code);
+    }
+
+    console.log('Creating space:', { floor_id, space_code, space_type });
+
+    const result = await apiCall('/space_create.php', 'POST', {
+        floor_id: floor_id,
+        space_code: space_code,
+        space_type: space_type,
+        status: 'Bos'
+    });
+
+    if (result.success) {
+        showNotification('Park yeri oluşturuldu: ' + space_code, 'success');
+        closeNewSpaceModal();
+
+        // Filtre durumunu koru ve yenile
+        await loadSpaces();
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+/**
+ * Spaces sayfası event listener'larını kur
+ */
+function setupSpacesPage() {
+    // Chip butonları (status filter)
+    const chipBtns = document.querySelectorAll('#spaces .chip-btn');
+    console.log('Found chip buttons:', chipBtns.length);
+
+    chipBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            console.log('Chip clicked:', btn.getAttribute('data-status'));
+            chipBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            spacesFilterState.status = btn.getAttribute('data-status') || '';
+            loadSpaces();
+        });
+    });
+
+    // Lot select
+    const lotSelect = document.getElementById('spaces-lot-filter');
+    if (lotSelect) {
+        lotSelect.addEventListener('change', async (e) => {
+            console.log('Lot changed:', e.target.value);
+            spacesFilterState.lot_code = e.target.value;
+            spacesFilterState.floor_id = '';
+
+            if (spacesFilterState.lot_code) {
+                await loadFloorsForFilter(spacesFilterState.lot_code);
+            }
+
+            loadSpaces();
+        });
+    }
+
+    // Floor select
+    const floorSelect = document.getElementById('spaces-floor-filter');
+    if (floorSelect) {
+        floorSelect.addEventListener('change', (e) => {
+            console.log('Floor changed:', e.target.value);
+            spacesFilterState.floor_id = e.target.value ? parseInt(e.target.value) : '';
+            loadSpaces();
+        });
+    }
+
+    // Filter button
+    const filterBtn = document.getElementById('spaces-filter-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', () => {
+            console.log('Filter clicked');
+            loadSpaces();
+        });
+    }
+
+    // Add button
+    const addBtn = document.getElementById('spaces-add-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            console.log('Add clicked');
+            addNewSpace();
+        });
+    }
+
+    console.log('✅ Spaces page setup complete');
+}
+
+// Modal save butonu event listener (DOMContentLoaded'da)
+document.addEventListener('DOMContentLoaded', () => {
+    const modalSaveBtn = document.getElementById('modal-save-space');
+    if (modalSaveBtn) {
+        modalSaveBtn.addEventListener('click', saveNewSpaceFromModal);
+    }
+});
+
+// ==============================================
+// ARAÇ YÖNETİMİ (VEHICLE MANAGEMENT)
+// ==============================================
+
+let currentCustomerId = null;
+
+/**
+ * Araç ekleme modal'ını aç
+ */
+function openAddVehicleModal(cid) {
+    currentCustomerId = cid;
+    const modal = document.getElementById('add-vehicle-modal');
+    modal.style.display = 'flex';
+    document.getElementById('vehicle-plate').focus();
+}
+
+/**
+ * Araç ekleme modal'ını kapat
+ */
+function closeAddVehicleModal() {
+    const modal = document.getElementById('add-vehicle-modal');
+    modal.style.display = 'none';
+
+    // Form'u temizle
+    document.getElementById('vehicle-plate').value = '';
+    document.getElementById('vehicle-make').value = '';
+    document.getElementById('vehicle-model').value = '';
+    document.getElementById('vehicle-color').value = '';
+
+    currentCustomerId = null;
+}
+
+/**
+ * Yeni araç kaydet
+ */
+async function saveVehicle() {
+    if (!currentCustomerId) {
+        showNotification('Müşteri seçilmedi', 'error');
+        return;
+    }
+
+    const plate = document.getElementById('vehicle-plate').value.trim().toUpperCase();
+    const make = document.getElementById('vehicle-make').value.trim();
+    const model = document.getElementById('vehicle-model').value.trim();
+    const color = document.getElementById('vehicle-color').value.trim();
+
+    if (!plate) {
+        showNotification('Plaka gerekli', 'error');
+        return;
+    }
+
+    const result = await apiCall('/vehicle_create.php', 'POST', {
+        cid: currentCustomerId,
+        plate: plate,
+        make: make,
+        model: model,
+        color: color
+    });
+
+    if (result.success) {
+        showNotification('Araç eklendi: ' + plate, 'success');
+        closeAddVehicleModal();
+
+        // Müşteri detaylarını yenile
+        loadCustomerDetails(currentCustomerId);
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+
+// Modal save vehicle button
+document.addEventListener('DOMContentLoaded', () => {
+    const modalSaveVehicleBtn = document.getElementById('modal-save-vehicle');
+    if (modalSaveVehicleBtn) {
+        modalSaveVehicleBtn.addEventListener('click', saveVehicle);
+    }
+});

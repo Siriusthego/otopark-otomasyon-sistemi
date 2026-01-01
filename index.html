@@ -152,8 +152,8 @@
         <div class="grid two">
           <div class="card">
             <div class="card-head">
-              <h2>İçerideki Araçlar</h2>
-              <button class="btn btn-soft">Tümü</button>
+              <h3>Araçları</h3>
+              <button class="btn btn-primary btn-xs" id="customer-add-vehicle-btn">+ Araç Ekle</button>
             </div>
 
             <div class="table">
@@ -407,26 +407,25 @@
             <p class="muted">Boş / Dolu / Bakım durumlarına göre yönetim.</p>
           </div>
           <div class="section-actions">
-            <button class="btn btn-soft">Filtre</button>
-            <button class="btn btn-primary">+ Yeni Yer</button>
+            <button class="btn btn-soft" id="spaces-filter-btn">Filtre</button>
+            <button class="btn btn-primary" id="spaces-add-btn">+ Yeni Yer</button>
           </div>
         </div>
 
         <div class="card">
           <div class="toolbar">
             <div class="chips">
-              <button class="chip-btn active">Tümü</button>
-              <button class="chip-btn">Boş</button>
-              <button class="chip-btn">Dolu</button>
-              <button class="chip-btn">Bakım</button>
+              <button class="chip-btn active" data-status="">Tümü</button>
+              <button class="chip-btn" data-status="Bos">Boş</button>
+              <button class="chip-btn" data-status="Dolu">Dolu</button>
+              <button class="chip-btn" data-status="Bakim">Bakım</button>
             </div>
             <div class="selects">
-              <select>
-                <option>OTOP01</option>
+              <select id="spaces-lot-filter">
+                <option value="">Yükleniyor...</option>
               </select>
-              <select>
-                <option>Zemin</option>
-                <option>1.Kat</option>
+              <select id="spaces-floor-filter">
+                <option value="">Önce otopark seçin</option>
               </select>
             </div>
           </div>
@@ -534,7 +533,10 @@
 
             <div class="divider"></div>
 
-            <h3 class="h3">Araçlar</h3>
+            <div class="card-head">
+              <h3>Araçlar</h3>
+              <button class="btn btn-primary btn-xs" id="customer-add-vehicle-btn">+ Araç Ekle</button>
+            </div>
             <div class="table" id="cust-vehicles-table">
               <div class="t-row t-head">
                 <div>Plaka</div>
@@ -649,7 +651,7 @@
             <p class="muted">Müşteri–tarife aboneliği yönetimi.</p>
           </div>
           <div class="section-actions">
-            <button class="btn btn-soft">Filtre</button>
+            <button class="btn btn-soft" id="spaces-filter-btn">Filtre</button>
             <button class="btn btn-primary" id="subs-create-btn">+ Abonelik Oluştur</button>
           </div>
         </div>
@@ -728,6 +730,7 @@
             <h2 class="h2">Aylık Gelir</h2>
             <p class="muted small">Toplam gelir ve ödeme sayısı.</p>
             <div class="spark big">
+              <div class="h1" id="rep-rev-total">₺0</div>
               <span style="height:40%"></span><span style="height:55%"></span><span style="height:70%"></span>
               <span style="height:50%"></span><span style="height:80%"></span><span style="height:60%"></span>
               <span style="height:88%"></span>
@@ -836,3 +839,73 @@
 </body>
 
 </html>
+<!-- MODAL: Yeni Park Yeri -->
+<div id="new-space-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Yeni Park Yeri Ekle</h2>
+      <button class="modal-close" onclick="closeNewSpaceModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form">
+        <div class="field">
+          <label>Otopark</label>
+          <select id="modal-lot-select"></select>
+        </div>
+        <div class="field">
+          <label>Kat</label>
+          <select id="modal-floor-select"></select>
+        </div>
+        <div class="field">
+          <label>Park Yeri Kodu</label>
+          <input type="text" id="modal-space-code" placeholder="Örn: A-15" />
+        </div>
+        <div class="field">
+          <label>Tip</label>
+          <select id="modal-space-type">
+            <option value="Normal">Normal</option>
+            <option value="Engelli">Engelli</option>
+            <option value="Elektrikli">Elektrikli</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-soft" onclick="closeNewSpaceModal()">İptal</button>
+      <button class="btn btn-primary" id="modal-save-space">Kaydet</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL: Araç Ekle -->
+<div id="add-vehicle-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Müşteriye Araç Ekle</h2>
+      <button class="modal-close" onclick="closeAddVehicleModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form">
+        <div class="field">
+          <label>Plaka *</label>
+          <input type="text" id="vehicle-plate" placeholder="34ABC123" style="text-transform: uppercase;" />
+        </div>
+        <div class="field">
+          <label>Marka</label>
+          <input type="text" id="vehicle-make" placeholder="Toyota" />
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <input type="text" id="vehicle-model" placeholder="Corolla" />
+        </div>
+        <div class="field">
+          <label>Renk</label>
+          <input type="text" id="vehicle-color" placeholder="Beyaz" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-soft" onclick="closeAddVehicleModal()">İptal</button>
+      <button class="btn btn-primary" id="modal-save-vehicle">Kaydet</button>
+    </div>
+  </div>
+</div>
