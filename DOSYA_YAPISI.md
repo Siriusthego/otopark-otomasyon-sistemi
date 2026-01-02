@@ -1,186 +1,407 @@
-# 📁 Otopark Otomasyon Sistemi - Dosya Yapısı
+# 📁 Dosya Yapısı ve Açıklaması
 
-## Genel Bakış
-
-```
-/home/abdullahemirkirecci/Downloads/VS/
-│
-├── 📄 index.html           # Ana sayfa (Frontend arayüzü)
-├── 🎨 style.css            # CSS tasarım dosyası
-├── ⚡ app.js              # JavaScript (API entegrasyonu)
-│
-├── 🗄️ schema.sql          # Veritabanı şeması
-│
-├── 📂 api/                 # Backend API klasörü
-│   ├── db.php              # MySQL PDO bağlantısı
-│   ├── entry.php           # Araç giriş endpoint'i
-│   ├── exit.php            # Araç çıkış endpoint'i
-│   ├── payments.php        # Ödeme kayıt endpoint'i
-│   ├── spaces.php          # Park yerleri listesi endpoint'i
-│   ├── tariffs.php         # Tarifeler listesi endpoint'i
-│   └── dashboard.php       # Dashboard verileri endpoint'i
-│
-└── 📖 README.md            # Kurulum ve kullanım dökümanı
-```
-
-## Dosya Açıklamaları
-
-### Frontend Dosyaları
-
-#### `index.html` (32 KB)
-- **Amaç:** Ana web arayüzü
-- **İçerik:**
-  - Dashboard ekranı
-  - Araç giriş formu
-  - Araç çıkış formu
-  - Park yerleri görünümü
-  - Müşteri ve araç yönetimi ekranları
-  - Raporlar bölümü
-- **Bağımlılıklar:** `style.css`, `app.js`
-
-#### `style.css` (14.7 KB)
-- **Amaç:** Modern, responsive tasarım
-- **Özellikler:**
-  - Dark mode tema
-  - Gradient efektler
-  - Responsive grid sistem
-  - Animasyonlar ve hover efektleri
-  - Glassmorphism UI elemanları
-
-#### `app.js` (~15 KB)
-- **Amaç:** Frontend-Backend entegrasyonu
-- **Fonksiyonlar:**
-  - `loadDashboard()` - Dashboard verilerini yükler
-  - `setupEntryForm()` - Giriş formunu hazırlar
-  - `submitEntry()` - Araç girişi yapar
-  - `loadExitRecords()` - Çıkış kayıtlarını listeler
-  - `processExit()` - Çıkış işlemini yapar
-  - `submitPayment()` - Ödeme kaydeder
-  - `loadSpaces()` - Park yerlerini listeler
-- **API Çağrıları:** `fetch()` ile JSON over HTTP
-
-### Veritabanı Dosyası
-
-#### `schema.sql` (~12 KB)
-- **Amaç:** Tam veritabanı yapısını oluşturur
-- **İçerik:**
-  - **10 Tablo** tanımı (employee, parking_lot, floor, parking_space, customer, vehicle, tariff, subscription, entry_exit, payment)
-  - **4 Trigger** (giriş/çıkış kontrolleri, ücret hesaplama)
-  - **4 View** (dashboard sorguları)
-  - **Demo veriler** (test için örnek kayıtlar)
-
-### Backend API Dosyaları
-
-#### `api/db.php`
-- **Amaç:** PDO MySQL bağlantısı
-- **İçerik:**
-  - Database credentials
-  - PDO instance oluşturma
-  - `sendJSON()` helper fonksiyonu
-  - CORS headers
-
-#### `api/entry.php`
-- **Method:** POST
-- **Parametreler:** `plate`, `space_id`, `tid`
-- **İşlev:**
-  - Plaka kontrolü
-  - Yoksa otomatik customer+vehicle oluşturma
-  - entry_exit kaydı ekleme
-  - Trigger'lar park yeri ve araç kontrolü yapar
-
-#### `api/exit.php`
-- **Method:** POST
-- **Parametreler:** `record_id`
-- **İşlev:**
-  - exit_time = NOW() olarak günceller
-  - Trigger otomatik süre ve ücret hesaplar
-  - Park yeri otomatik "Boş" olur
-
-#### `api/payments.php`
-- **Method:** POST
-- **Parametreler:** `record_id`, `method`
-- **İşlev:**
-  - payment tablosuna kayıt ekler
-  - Ödeme yöntemi: Nakit/Kredi Kartı/Online
-
-#### `api/spaces.php`
-- **Method:** GET
-- **Parametreler:** `?status=Bos` (opsiyonel)
-- **İşlev:**
-  - Tüm park yerlerini listeler
-  - Status'a göre filtreleme
-
-#### `api/tariffs.php`
-- **Method:** GET
-- **İşlev:**
-  - Aktif tarifeleri listeler
-  - HOURLY ve SUBSCRIPTION tiplerinde
-
-#### `api/dashboard.php`
-- **Method:** GET
-- **İşlev:**
-  - 4 view'dan veri çeker:
-    - `vw_occupancy_now` - Doluluk durumu
-    - `vw_revenue_today` - Bugünkü gelir
-    - `vw_inside_cars` - İçerideki araçlar
-    - `vw_active_subscriptions` - Aktif abonelikler
-  - Giriş/çıkış istatistikleri
-
-## Veri Akışı
+## 🗂️ Ana Dizin
 
 ```
-[Frontend: index.html]
-        ↓
-   [app.js]
-        ↓
-   fetch() → [Backend: api/*.php]
-                ↓
-          [db.php: PDO]
-                ↓
-          [MySQL: otopark_db]
-                ↓
-      [Triggers & Views]
-                ↓
-          [JSON Response]
-                ↓
-          [Frontend Display]
+VS/
+├── api/                    # Backend API Endpoints (28 dosya)
+├── index.html              # Ana sayfa (SPA)
+├── app.js                  # Frontend JavaScript logic
+├── style.css               # Styling
+├── schema.sql              # Database schema
+├── init_db.sql             # Initial data
+├── add_is_active.sql       # Soft delete patch
+├── setup_database.sh       # Database kurulum scripti
+├── README.md               # Proje dokümantasyonu
+├── DOSYA_YAPISI.md         # ← Bu dosya
+└── KULLANIM_REHBERI.md     # Kullanım kılavuzu
 ```
-
-## Kurulum Sırası
-
-1. ✅ MySQL'i kur ve çalıştır
-2. ✅ `schema.sql` ile veritabanını oluştur
-3. ✅ Apache + PHP'yi kur
-4. ✅ Dosyaları `/var/www/html/otopark/` dizinine kopyala
-5. ✅ `api/db.php` içinde MySQL credentials'ı ayarla
-6. ✅ Tarayıcıda `http://localhost/otopark/` aç
-7. ✅ Test et: Araç girişi → Çıkış → Ödeme
-
-## Teknoloji Stack
-
-| Katman | Teknoloji |
-|--------|-----------|
-| Frontend | HTML5, CSS3, JavaScript (Vanilla) |
-| Backend | PHP 7.4+ (Procedural) |
-| Database | MySQL 8.0 |
-| Web Server | Apache 2.4 |
-| API | RESTful JSON |
-| Connection | PDO (PHP Data Objects) |
-
-## Güvenlik Notları
-
-- ✅ PDO prepared statements (SQL injection koruması)
-- ✅ Input validasyonu (PHP tarafında)
-- ⚠️ **Eksikler (production için):**
-  - Authentication/Authorization yok
-  - HTTPS yok
-  - CSRF token yok
-  - Rate limiting yok
-  - Şifreleme yok
-
-**Not:** Bu sistem eğitim amaçlıdır. Production ortamında ek güvenlik önlemleri alınmalıdır.
 
 ---
 
-**Son Güncelleme:** 29 Aralık 2025  
-**Proje:** Üniversite Veritabanı Yönetimi Dersi
+## 📋 Dosya Detayları
+
+### 🎨 Frontend
+
+#### `index.html` (33KB)
+**Amaç:** Single Page Application (SPA) ana dosyası  
+**İçerik:**
+- 8 ana sekme (Dashboard, Giriş, Çıkış, Park Yerleri, Müşteriler, Tarifeler, Abonelikler, Raporlar)
+- Modal formlar (park yeri ekleme, araç ekleme)
+- Dinamik tablolar ve grid'ler
+- Müşteri detay paneli (sidebar)
+
+**Önemli ID'ler:**
+- `#global-search-input` - Global arama kutusu
+- `#spaces-lot-filter`, `#spaces-floor-filter` - Park yeri filtreleri
+- `#new-space-modal`, `#add-vehicle-modal` - Modal formlar
+
+#### `app.js` (65KB, ~2000 satır)
+**Amaç:** Tüm frontend logic  
+**Yapı:**
+```javascript
+// Global state
+spacesFilterState = {...}
+
+// Core functions
+apiCall()              // API wrapper
+showNotification()     // Bildirimler
+
+// Page-specific functions
+loadDashboard()        // Dashboard
+loadSpaces()           // Park yerleri + filtreleme
+loadCustomers()        // Müşteriler
+loadExitRecords()      // Çıkış kayıtları
+
+// NEW: Global Search
+performGlobalSearch()  // Ana arama fonksiyonu
+searchPlate()          // Plaka araması
+searchParkSpace()      // Park yeri araması
+searchCustomer()       // Müşteri araması
+
+// NEW: Vehicle Management
+displayGuestVehicleDetail()  // Misafir araç detayı
+highlightCustomerByName()    // Müşteri highlight
+
+// Modal functions
+openAddVehicleModal()
+saveVehicle()
+```
+
+**Öne Çıkanlar:**
+- Eager loading (DOMContentLoaded'da preload)
+- Event delegation
+- Async/await pattern
+- State management
+
+#### `style.css` (16KB, ~700 satır)
+**Amaç:** Modern, responsive styling  
+**Yapı:**
+```css
+:root { --primary, --success, etc. }  /* Design tokens */
+.card, .table, .badge                  /* Components */
+.modal                                 /* Modal stilleri */
+.space-grid                            /* Park yeri grid */
+.highlight-row                         /* Arama highlight */
+```
+
+**Özellikler:**
+- CSS Variables
+- Flexbox + Grid layout
+- Responsive design
+- Smooth transitions
+
+---
+
+### 🔧 Backend API
+
+#### **Core APIs**
+
+**`db.php`** (413 bytes)
+- PDO database bağlantısı
+- `sendJSON()` helper
+- Error handling
+
+**`dashboard.php`** (2.8 KB)
+- Anlık doluluk
+- Günlük gelir
+- Aktif abonelikler
+- İçerideki araçlar
+
+---
+
+#### **Araç Giriş/Çıkış APIs**
+
+**`entry.php`** (2.8 KB) ⭐ Güncellenmiş
+- Araç girişi
+- **Abonelik kontrolü** ✨
+- Park yeri müsaitlik
+- Otomatik araç kaydı (misafir)
+
+**`exit.php`** (2.3 KB) ⭐ Güncellenmiş
+- Araç çıkışı
+- **Abonelik indirimi (fee = 0)** ✨
+- Ücret hesaplama (trigger)
+- Park yeri durumu güncelleme
+
+---
+
+#### **Park Yeri APIs**
+
+**`parking_lots.php`** (1 KB) ✨ Yeni
+```http
+GET /api/parking_lots.php
+
+Response:
+{
+  "success": true,
+  "data": [
+    {"code": "OTOP01", "name": "Kadıköy Otopark", ...}
+  ]
+}
+```
+
+**`floors.php`** (1.2 KB) ✨ Yeni
+```http
+GET /api/floors.php?lot_code=OTOP01
+
+Response:
+{
+  "success": true,
+  "data": [
+    {"floor_id": 1, "name": "Zemin", ...}
+  ]
+}
+```
+
+**`spaces.php`** (3.1 KB) ⭐ Güncellenmiş
+```http
+GET /api/spaces.php?status=Bos&lot_code=OTOP01&floor_id=1
+
+Supports:
+- status: 'Bos', 'Dolu', 'Bakim'
+- lot_code: 'OTOP01'
+- floor_id: 1
+```
+
+**`space_create.php`** (2.4 KB) ✨ Yeni
+```http
+POST /api/space_create.php
+{
+  "floor_id": 1,
+  "space_code": "Z-05",
+  "type": "Normal"
+}
+```
+
+---
+
+#### **Araç Yönetimi APIs**
+
+**`vehicle_create.php`** (2.5 KB) ✨ Yeni
+```http
+POST /api/vehicle_create.php
+{
+  "cid": 5,
+  "plate": "34ABC123",
+  "make": "Toyota",
+  "model": "Corolla",
+  "color": "Beyaz"
+}
+```
+
+**`vehicle_info.php`** (2.1 KB) ✨ Yeni
+```http
+GET /api/vehicle_info.php?plate=34MRV007
+
+Response:
+{
+  "vehicle": {...},
+  "history": [...]  // Son 5 işlem
+}
+```
+
+**`vehicles.php`** (1.5 KB)
+- Araç listesi
+- Müşteri bazlı filtreleme
+
+---
+
+#### **Müşteri APIs**
+
+**`customers.php`** (1.8 KB)
+- Müşteri listesi
+- Aktif müşteriler (is_active = 1)
+
+**`customer_detail.php`** (3.5 KB)
+- Müşteri detayı
+- Araçlar
+- İşlem geçmişi
+
+**`customer_create.php`** (2.2 KB)
+- Yeni müşteri
+- Validation
+
+**`customer_update.php`** (2.4 KB)
+- Müşteri güncelleme
+
+**`customer_delete.php`** (3.8 KB)
+- Soft delete (is_active = 0)
+- İş kuralları:
+  - Aktif abonelik → Silinemez
+  - İçeride araç → Silinemez
+
+---
+
+#### **Tarife APIs**
+
+**`tariffs.php`** (1.9 KB)
+- Tarife CRUD
+- Aktif tarifeler
+
+**`tariff_create.php`**, **`tariff_update.php`**
+- Tarife yönetimi
+
+---
+
+#### **Abonelik APIs**
+
+**`subscriptions.php`** (2.1 KB)
+- Abonelik listesi
+- Durum filtreleme
+
+**`subscription_detail.php`** (1.8 KB)
+- Abonelik detayı
+
+**`subscription_create.php`** (2.8 KB)
+- Yeni abonelik
+
+**`subscription_update.php`** (2.5 KB)
+- Abonelik güncelleme
+
+---
+
+#### **Raporlama APIs**
+
+**`report_occupancy.php`** (1.5 KB)
+- Anlık doluluk raporu
+
+**`report_revenue_monthly.php`** (2.2 KB)
+- Aylık gelir raporu
+
+**`report_usage.php`** (1.8 KB)
+- Kullanım özeti
+
+**`report_export_all_csv.php`** (4.1 KB)
+- Tüm raporlar CSV
+
+**`report_export_all_pdf.php`** (5.3 KB)
+- Tüm raporlar PDF (mPDF)
+
+---
+
+### 🗄️ Database
+
+**`schema.sql`** (11.9 KB)
+- 10 Tablo tanımı
+- 7 View
+- 4 Trigger
+- Foreign key constraints
+- Indexes
+
+**Tablolar:**
+1. `parking_lot` - Otoparklar
+2. `floor` - Katlar
+3. `parking_space` - Park yerleri
+4. `employee` - Çalışanlar
+5. `customer` - Müşteriler (+ is_active)
+6. `vehicle` - Araçlar
+7. `tariff` - Tarifeler
+8. `subscription` - Abonelikler
+9. `entry_exit` - Giriş/çıkış kayıtları
+10. `payment` - Ödemeler
+
+**View'lar:**
+- `vw_occupancy_now` - Anlık doluluk
+- `vw_revenue_today` - Günlük gelir
+- `vw_active_subscriptions` - Aktif abonelikler
+- `vw_customer_summary` - Müşteri özeti
+- `vw_recent_entries` - Son girişler
+- `vw_inside_cars` - İçerideki araçlar
+- `vw_subscription_status_update` - Abonelik durumu
+
+**Trigger'lar:**
+1. `before_entry_check_availability` - Park yeri müsaitlik
+2. `after_entry_update_space` - Giriş sonrası güncelleme
+3. `after_exit_update_space` - Çıkış sonrası güncelleme
+4. `calculate_fee_on_exit` - Ücret hesaplama
+
+**`init_db.sql`** (217 bytes)
+- Initial data
+- Misafir müşteri (cid=999)
+- Sample otopark
+
+**`add_is_active.sql`** (229 bytes)
+- Soft delete patch
+- `is_active` column ekleme
+
+---
+
+## 📊 Dosya İstatistikleri
+
+### API Endpoints (28 dosya)
+
+| Kategori | Dosya Sayısı | Toplam Boyut |
+|----------|--------------|--------------|
+| Core | 2 | ~3 KB |
+| Giriş/Çıkış | 2 | ~5 KB |
+| Park Yerleri | 4 | ~8 KB |
+| Araç Yönetimi | 3 | ~6 KB |
+| Müşteri | 5 | ~13 KB |
+| Tarife | 3 | ~6 KB |
+| Abonelik | 4 | ~9 KB |
+| Raporlama | 5 | ~14 KB |
+| **TOPLAM** | **28** | **~64 KB** |
+
+### Frontend
+
+| Dosya | Satır | Boyut |
+|-------|-------|-------|
+| index.html | ~900 | 33 KB |
+| app.js | ~2000 | 65 KB |
+| style.css | ~700 | 16 KB |
+| **TOPLAM** | **~3600** | **114 KB** |
+
+### Database
+
+| Dosya | İçerik |
+|-------|--------|
+| schema.sql | 10 tablo + 7 view + 4 trigger |
+| init_db.sql | Initial data |
+| add_is_active.sql | Soft delete patch |
+
+---
+
+## 🆕 v2.0.0 Yeni Dosyalar
+
+✨ **Yeni Backend APIs:**
+- `api/parking_lots.php`
+- `api/floors.php`
+- `api/space_create.php`
+- `api/vehicle_create.php`
+- `api/vehicle_info.php`
+
+⭐ **Güncellenen APIs:**
+- `api/entry.php` (abonelik)
+- `api/exit.php` (abonelik + fee)
+- `api/spaces.php` (filtreleme)
+
+---
+
+## 🗑️ Temizlenen Dosyalar
+
+Aşağıdaki gereksiz dosyalar silindi:
+
+- ❌ `app.js.backup` (eski yedek)
+- ❌ `app.js.bak` (eski yedek)
+- ❌ `app.js.broken` (bozuk versiyon)
+- ❌ `loadCustomerDetails_new.js` (test dosyası)
+- ❌ `test.html` (test dosyası)
+- ❌ `test_db.php` (debug dosyası)
+- ❌ `fix_customer_details.sh` (eski script)
+
+---
+
+## 📝 Dokümantasyon Dosyaları
+
+- `README.md` - Ana dokümantasyon
+- `DOSYA_YAPISI.md` - Bu dosya
+- `KULLANIM_REHBERI.md` - Kullanım kılavuzu
+- `KURULUM_KOMUTLARI.md` - Kurulum adımları
+
+---
+
+**Son Güncelleme:** 02 Ocak 2026  
+**Toplam Dosya:** 35  
+**Toplam Kod:** ~3600+ satır  
+**API Endpoint:** 28

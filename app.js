@@ -1588,3 +1588,422 @@ document.addEventListener('DOMContentLoaded', () => {
         modalSaveVehicleBtn.addEventListener('click', saveVehicle);
     }
 });
+
+// ==============================================
+// GLOBAL SEARCH (Plaka / Müşteri / Park Yeri)
+// ==============================================
+
+/**
+ * Global arama işlevi
+ */
+async function performGlobalSearch(query) {
+    if (!query || query.trim().length < 2) {
+        showNotification('En az 2 karakter girin', 'error');
+        return;
+    }
+
+    query = query.trim();
+    const upperQuery = query.toUpperCase();
+    console.log('🔍 Global search:', upperQuery);
+
+    // PLAKA formatı kontrolü - daha esnek (test plakaları, misafir araçlar için)
+    const cleanQuery = upperQuery.replace(/\s+/g, '');
+    // Standard: 34ABC123, Non-standard: 45TEST1213, TEST99, vb.
+    const isPlate = /^[0-9]{2}[A-Z0-9]{1,10}$/i.test(cleanQuery) ||
+        /^[A-Z]{2,}[0-9]{2,}$/i.test(cleanQuery);
+
+    // PARK YERİ formatı kontrolü (test-99, Z-05, 1-12 vb.)
+    const isParkSpace = /^[A-Z0-9]+-[0-9]+$/i.test(upperQuery);
+
+    if (isPlate) {
+        // PLAKA ARAMASI
+        console.log('🚗 Plate search:', cleanQuery);
+        await searchPlate(cleanQuery);
+
+    } else if (isParkSpace) {
+        // PARK YERİ ARAMASI
+        console.log('🅿️ Park space search:', upperQuery);
+        await searchParkSpace(upperQuery);
+
+    } else {
+        // MÜŞTERİ ARAMASI
+        console.log('👤 Customer search:', upperQuery);
+        await searchCustomer(upperQuery);
+    }
+}
+
+/**
+ * Plaka arama
+ */
+async function searchPlate(plate) {
+    try {
+        // Dashboard API'si içerideki araçları döndürüyor
+        const result = await apiCall('/dashboard.php');
+
+        if (!result.success || !result.data.inside_cars) {
+            showNotification('İçerideki araçlar yüklenemedi', 'error');
+            return;
+        }
+
+        // Plakayı bul
+        const record = result.data.inside_cars.find(r =>
+            r.plate.replace(/\s+/g, '').toUpperCase() === plate
+        );
+
+        if (record) {
+            // İçeride bulundu - Araç Çıkışı sekmesine geç
+            const exitLink = document.querySelector('a[href="#exit"]');
+            if (exitLink) {
+                exitLink.click();
+            }
+
+            setTimeout(() => {
+                highlightExitRecord(record.record_id);
+            }, 300);
+
+            // Konum bilgisiyle zenginleştirilmiş bildirim
+            const location = record.space_code || 'Bilinmeyen';
+            const entryTime = record.entry_time ? formatTime(record.entry_time) : '-';
+            showNotification(
+                `✅ ${record.plate}\n📍 Park Yeri: ${location}\n🕐 Giriş: ${entryTime}`,
+                'success'
+            );
+        } else {
+            // İçeride değil - Araç kayıtlı mı kontrol et
+            console.log('Not inside, checking vehicle info...');
+            const vehicleInfo = await apiCall('/vehicle_info.php?plate=' + plate);
+
+            if (vehicleInfo.success) {
+                showVehicleInfoModal(vehicleInfo.data);
+            } else {
+                showNotification(`${plate} plakası kayıtlı değil`, 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Plate search error:', error);
+        showNotification('Plaka araması hatası', 'error');
+    }
+}
+
+/**
+ * Araç bilgi modalını göster (Plaka içeride değilse)
+ */
+function showVehicleInfoModal(data) {
+    const vehicle = data.vehicle;
+    const history = data.history || [];
+
+    const isGuest = vehicle.cid === 999;
+
+    // Son park yeri bilgisi
+    let lastLocation = 'Bilinmiyor';
+    if (history.length > 0) {
+        lastLocation = history[0].space_code || 'Bilinmiyor';
+    }
+
+    // Bildirim göster
+    if (isGuest) {
+        showNotification(
+            `🚗 ${vehicle.plate} (Misafir)\n📍 Son konum: ${lastLocation}\n⚠️ Şu an otoparkta değil`,
+            'info'
+        );
+    } else {
+        showNotification(
+            `🚗 ${vehicle.plate} (${vehicle.customer_name})\n📍 Son konum: ${lastLocation}\n⚠️ Şu an otoparkta değil`,
+            'info'
+        );
+    }
+
+    // Console'a detay
+    console.log('🚗 Vehicle Info:', {
+        plate: vehicle.plate,
+        customer: vehicle.customer_name || 'Misafir',
+        isGuest: isGuest,
+        lastLocation: lastLocation,
+        history: history
+    });
+
+    // HIZLI navigasyon - 300ms
+    setTimeout(() => {
+        const customersLink = document.querySelector('a[href="#customers"]');
+        if (customersLink) {
+            customersLink.click();
+
+            setTimeout(() => {
+                if (isGuest) {
+                    // Misafir araç için ÖZEL görünüm (sadece bu araç)
+                    displayGuestVehicleDetail(vehicle, history);
+                } else {
+                    // Normal müşteri için highlight + detay aç
+                    highlightCustomerByName(vehicle.customer_name);
+                }
+            }, 200);
+        }
+    }, 300);
+}
+
+/**
+ * Misafir araç detayını göster (sadece o araç)
+ */
+function displayGuestVehicleDetail(vehicle, history) {
+    // Müşteri listesinde Misafir'i bul ve highlight et
+    clearHighlights();
+
+    const rows = document.querySelectorAll('#customers .t-row');
+    rows.forEach(row => {
+        const nameCell = row.querySelector('div:first-child');
+        if (nameCell && nameCell.textContent.toUpperCase().includes('MİSAFİR')) {
+            row.classList.add('highlight-row');
+            row.style.background = '#fef3c7';
+            row.style.border = '2px solid #f59e0b';
+            row.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+
+    // Sağ panelde SADECE BU ARACA ait bilgileri göster
+    const avatar = document.getElementById('cust-avatar');
+    const name = document.getElementById('cust-name');
+    const info = document.getElementById('cust-info');
+
+    if (avatar && name && info) {
+        avatar.textContent = '🚗';
+        avatar.style.fontSize = '24px';
+        name.textContent = vehicle.plate;
+        info.textContent = `Misafir Araç • ${vehicle.make || '-'} ${vehicle.model || '-'}`;
+    }
+
+    // Araçlar tablosu - SADECE BU ARAÇ
+    const vehiclesTable = document.getElementById('cust-vehicles-table');
+    if (vehiclesTable) {
+        let html = '<div class="t-row t-head"><div>Plaka</div><div>Marka</div><div>Model</div><div>Renk</div></div>';
+        html += '<div class="t-row">';
+        html += '<div class="mono">' + vehicle.plate + '</div>';
+        html += '<div>' + (vehicle.make || '-') + '</div>';
+        html += '<div>' + (vehicle.model || '-') + '</div>';
+        html += '<div>' + (vehicle.color || '-') + '</div>';
+        html += '</div>';
+        vehiclesTable.innerHTML = html;
+    }
+
+    // İşlem geçmişi - SADECE BU ARACIN GEÇMİŞİ
+    const transactionsTable = document.getElementById('cust-transactions-table');
+    if (transactionsTable) {
+        let html = '<div class="t-row t-head">';
+        html += '<div>Kayıt</div><div>Plaka</div><div>Giriş</div><div>Çıkış</div><div>Tutar</div>';
+        html += '</div>';
+
+        if (history.length === 0) {
+            html += '<div class="t-row"><div colspan="5" style="text-align:center; padding:20px; color:#999;">Bu aracın işlem geçmişi yok</div></div>';
+        } else {
+            history.forEach(tx => {
+                const exitTime = tx.exit_time ? formatTime(tx.exit_time) : '⏱️ İçeride';
+                const fee = tx.fee ? formatTRY(tx.fee) : '-';
+                html += '<div class="t-row">';
+                html += '<div class="mono">#' + tx.record_id + '</div>';
+                html += '<div class="mono">' + vehicle.plate + '</div>';
+                html += '<div>' + formatTime(tx.entry_time) + '</div>';
+                html += '<div>' + exitTime + '</div>';
+                html += '<div>' + fee + '</div>';
+                html += '</div>';
+            });
+        }
+
+        transactionsTable.innerHTML = html;
+    }
+}
+
+/**
+ * Müşteriyi isimle bulup highlight et
+ */
+function highlightCustomerByName(customerName) {
+    clearHighlights();
+
+    const rows = document.querySelectorAll('#customers .t-row');
+    let found = false;
+
+    rows.forEach(row => {
+        const nameCell = row.querySelector('div:first-child');
+        if (nameCell && nameCell.textContent.toUpperCase().includes(customerName.toUpperCase())) {
+            // Highlight
+            row.classList.add('highlight-row');
+            row.style.background = '#fef3c7';
+            row.style.border = '2px solid #f59e0b';
+            row.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Detayı aç (müşteri detay butonuna tıkla)
+            const detailBtn = row.querySelector('.customer-detail-btn');
+            if (detailBtn) {
+                setTimeout(() => {
+                    detailBtn.click();
+                }, 300);
+            }
+
+            found = true;
+        }
+    });
+
+    return found;
+}
+/**
+ * Park yeri arama
+ */
+async function searchParkSpace(spaceCode) {
+    try {
+        const result = await apiCall('/spaces.php');
+
+        if (!result.success || !result.data.spaces) {
+            showNotification('Park yerleri yüklenemedi', 'error');
+            return;
+        }
+
+        const space = result.data.spaces.find(s =>
+            s.space_code.toUpperCase() === spaceCode
+        );
+
+        if (space) {
+            // Park Yerleri sekmesine geç
+            const spacesLink = document.querySelector('a[href="#spaces"]');
+            if (spacesLink) {
+                spacesLink.click();
+            }
+
+            setTimeout(() => {
+                highlightParkSpace(spaceCode);
+            }, 300);
+
+            showNotification(`Park yeri bulundu: ${spaceCode} (${space.status})`, 'success');
+        } else {
+            showNotification(`${spaceCode} park yeri bulunamadı`, 'error');
+        }
+    } catch (error) {
+        console.error('Space search error:', error);
+        showNotification('Park yeri araması hatası', 'error');
+    }
+}
+
+/**
+ * Müşteri arama
+ */
+async function searchCustomer(name) {
+    // Customers sekmesine git
+    const customersLink = document.querySelector('a[href="#customers"]');
+    if (customersLink) {
+        customersLink.click();
+
+        setTimeout(() => {
+            highlightCustomer(name);
+        }, 300);
+    }
+}
+
+/**
+ * Exit kaydı highlight
+ */
+function highlightExitRecord(recordId) {
+    clearHighlights();
+
+    const rows = document.querySelectorAll('#exit .t-row');
+    rows.forEach(row => {
+        const recordCell = row.querySelector('.mono');
+        if (recordCell && recordCell.textContent.includes('#' + recordId)) {
+            row.classList.add('highlight-row');
+            row.style.background = '#fef3c7';
+            row.style.border = '2px solid #f59e0b';
+            row.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+}
+
+/**
+ * Park yeri highlight
+ */
+function highlightParkSpace(spaceCode) {
+    clearHighlights();
+
+    const spaces = document.querySelectorAll('#spaces .space');
+    let found = false;
+
+    spaces.forEach(space => {
+        const codeEl = space.querySelector('.space-code');
+        if (codeEl && codeEl.textContent.toUpperCase() === spaceCode) {
+            space.style.border = '3px solid #f59e0b';
+            space.style.boxShadow = '0 0 0 4px rgba(245, 158, 11, 0.2)';
+            space.style.transform = 'scale(1.05)';
+            space.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            found = true;
+        }
+    });
+
+    return found;
+}
+
+/**
+ * Müşteri highlight
+ */
+function highlightCustomer(query) {
+    clearHighlights();
+
+    const rows = document.querySelectorAll('#customers .t-row');
+    let found = false;
+
+    rows.forEach(row => {
+        const nameCell = row.querySelector('div:first-child');
+        if (nameCell && nameCell.textContent.toUpperCase().includes(query)) {
+            row.classList.add('highlight-row');
+            row.style.background = '#fef3c7';
+            row.style.border = '2px solid #f59e0b';
+            row.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            found = true;
+        }
+    });
+
+    if (found) {
+        showNotification('Müşteri bulundu', 'success');
+    } else {
+        showNotification('Müşteri bulunamadı', 'error');
+    }
+}
+
+/**
+ * Tüm highlight'ları temizle
+ */
+function clearHighlights() {
+    document.querySelectorAll('.highlight-row').forEach(el => {
+        el.classList.remove('highlight-row');
+        el.style.background = '';
+        el.style.border = '';
+        el.style.boxShadow = '';
+    });
+
+    document.querySelectorAll('#spaces .space').forEach(el => {
+        el.style.border = '';
+        el.style.boxShadow = '';
+        el.style.transform = '';
+    });
+}
+
+// Global search event listener
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('global-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performGlobalSearch(searchInput.value);
+            }
+        });
+
+        // Search icon click
+        const searchContainer = searchInput.parentElement;
+        if (searchContainer) {
+            searchContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'svg' || e.target.tagName === 'path' || e.target.tagName === 'circle') {
+                    performGlobalSearch(searchInput.value);
+                }
+            });
+        }
+    }
+});
+
