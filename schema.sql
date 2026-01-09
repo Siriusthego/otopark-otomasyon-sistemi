@@ -91,7 +91,7 @@ CREATE TABLE subscription (
     tid INT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    status ENUM('Aktif', 'Pasif', 'Sona Erdi') DEFAULT 'Aktif',
+    status ENUM('Aktif', 'Pasif', 'Sona Erdi', 'Yakında') DEFAULT 'Aktif',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cid) REFERENCES customer(cid) ON DELETE CASCADE,
     FOREIGN KEY (tid) REFERENCES tariff(tid) ON DELETE RESTRICT
